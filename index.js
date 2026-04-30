@@ -68,7 +68,8 @@ const TEXT = {
     stats: '📊 Статистика',
     editWhat: '✏️ Что изменить?',
     editText: '✍️ Напиши новый текст задачи:',
-    overdueTitle: '⏳ Просроченные задачи'
+    overdueTitle: '⏳ Просроченные задачи',
+    streakUpdated: '🔥 Стрик обновлён'
   },
   en: {
     start: '👋 Hi! I am your smart task planner.\n\nTap “➕ New task”, and I will guide you step by step.',
@@ -113,7 +114,8 @@ const TEXT = {
     stats: '📊 Statistics',
     editWhat: '✏️ What do you want to edit?',
     editText: '✍️ Write new task text:',
-    overdueTitle: '⏳ Overdue tasks'
+    overdueTitle: '⏳ Overdue tasks',
+    streakUpdated: '🔥 Streak updated'
   },
   de: {
     start: '👋 Hallo! Ich bin dein smarter Aufgabenplaner.\n\nTippe auf „➕ Neue Aufgabe“, und ich führe dich Schritt für Schritt.',
@@ -158,7 +160,8 @@ const TEXT = {
     stats: '📊 Statistik',
     editWhat: '✏️ Was möchtest du ändern?',
     editText: '✍️ Schreibe den neuen Aufgabentext:',
-    overdueTitle: '⏳ Überfällige Aufgaben'
+    overdueTitle: '⏳ Überfällige Aufgaben',
+    streakUpdated: '🔥 Serie aktualisiert'
   }
 };
 
@@ -365,12 +368,16 @@ async function initDB() {
       digest_time TEXT DEFAULT '09:00',
       digest_sent_date TEXT,
       timezone TEXT DEFAULT 'Europe/Moscow',
-      language TEXT DEFAULT 'ru'
+      language TEXT DEFAULT 'ru',
+      streak INTEGER DEFAULT 0,
+      last_done_date TEXT
     )
   `);
 
   await pool.query(`ALTER TABLE users_settings ADD COLUMN IF NOT EXISTS timezone TEXT DEFAULT 'Europe/Moscow'`);
   await pool.query(`ALTER TABLE users_settings ADD COLUMN IF NOT EXISTS language TEXT DEFAULT 'ru'`);
+  await pool.query(`ALTER TABLE users_settings ADD COLUMN IF NOT EXISTS streak INTEGER DEFAULT 0`);
+  await pool.query(`ALTER TABLE users_settings ADD COLUMN IF NOT EXISTS last_done_date TEXT`);
 }
 
 async function ensureUser(userId) {
@@ -393,7 +400,9 @@ async function getUserSettings(userId) {
   return res.rows[0] || {
     digest_time: '09:00',
     timezone: DEFAULT_TIMEZONE,
-    language: DEFAULT_LANGUAGE
+    language: DEFAULT_LANGUAGE,
+    streak: 0,
+    last_done_date: null
   };
 }
 
@@ -709,6 +718,37 @@ async function createNextRepeatTask(task) {
   );
 }
 
+async function updateStreak(userId, timezone) {
+  const today = todayDate(timezone);
+  const yesterday = addDaysToDate(today, -1);
+
+  const res = await pool.query(
+    'SELECT streak, last_done_date FROM users_settings WHERE user_id=$1',
+    [userId]
+  );
+
+  const user = res.rows[0];
+  if (!user) return;
+
+  let streak = user.streak || 0;
+  const lastDoneDate = user.last_done_date;
+
+  if (lastDoneDate === today) {
+    return;
+  }
+
+  if (lastDoneDate === yesterday) {
+    streak += 1;
+  } else {
+    streak = 1;
+  }
+
+  await pool.query(
+    'UPDATE users_settings SET streak=$1, last_done_date=$2 WHERE user_id=$3',
+    [streak, today, userId]
+  );
+}
+
 // ================= СТАРТ =================
 
 bot.start(async (ctx) => {
@@ -953,13 +993,18 @@ bot.hears(allButtons('stats'), async (ctx) => {
     'SELECT COUNT(*) FROM tasks WHERE user_id=$1 AND done=false AND task_date IS NOT NULL AND task_date < $2',
     [ctx.from.id, todayDate(settings.timezone)]
   );
+  const userStats = await pool.query(
+    'SELECT streak FROM users_settings WHERE user_id=$1',
+    [ctx.from.id]
+  );
 
   await ctx.reply(
     `${t(lang, 'stats')}\n\n` +
     `📋 Active: ${active.rows[0].count}\n` +
     `📅 Today: ${today.rows[0].count}\n` +
     `⏳ Overdue: ${overdue.rows[0].count}\n` +
-    `✅ Done: ${done.rows[0].count}`,
+    `✅ Done: ${done.rows[0].count}\n` +
+    `🔥 Streak: ${userStats.rows[0]?.streak || 0}`,
     menu(lang)
   );
 });
@@ -1355,6 +1400,9 @@ bot.action(/editpri_(\d+)/, async (ctx) => {
 });
 
 bot.action(/done_(\d+)/, async (ctx) => {
+  const settings = await getUserSettings(ctx.from.id);
+  const lang = settings.language || DEFAULT_LANGUAGE;
+
   const res = await pool.query(
     'SELECT * FROM tasks WHERE id=$1 AND user_id=$2',
     [ctx.match[1], ctx.from.id]
@@ -1367,9 +1415,11 @@ bot.action(/done_(\d+)/, async (ctx) => {
     [ctx.match[1], ctx.from.id]
   );
 
+  await updateStreak(ctx.from.id, settings.timezone);
+
   if (task) await createNextRepeatTask(task);
 
-  await ctx.answerCbQuery('✅');
+  await ctx.answerCbQuery(t(lang, 'streakUpdated'));
   await ctx.editMessageText('✅');
 });
 
