@@ -72,6 +72,14 @@ function dateMenu() {
   ]).resize();
 }
 
+function timeMenu() {
+  return Markup.keyboard([
+    ['⏰ Через 1 час', '🌙 Вечером'],
+    ['🌅 Завтра утром', '🕳 Без времени'],
+    ['❌ Отмена']
+  ]).resize();
+}
+
 function priorityMenu() {
   return Markup.keyboard([
     ['🟢 Низкий', '⚪ Средний', '🔥 Высокий'],
@@ -118,6 +126,12 @@ function addMinutes(time, minutes) {
   const date = new Date();
   date.setHours(h);
   date.setMinutes(m + minutes);
+  return date.toTimeString().slice(0, 5);
+}
+
+function timeInOneHour() {
+  const date = new Date();
+  date.setHours(date.getHours() + 1);
   return date.toTimeString().slice(0, 5);
 }
 
@@ -226,8 +240,8 @@ bot.hears('📅 Сегодня', async (ctx) => {
     state.step = 'time';
 
     return ctx.reply(
-      '⏰ Во сколько напомнить?\n\nНапример: 08:40\nИли напиши: нет',
-      Markup.keyboard([['нет'], ['❌ Отмена']]).resize()
+      '⏰ Когда напомнить?\n\nМожно выбрать кнопку или написать время вручную: 08:40',
+      timeMenu()
     );
   }
 
@@ -257,8 +271,8 @@ bot.hears('🗓 Завтра', async (ctx) => {
     state.step = 'time';
 
     return ctx.reply(
-      '⏰ Во сколько напомнить?\n\nНапример: 08:40\nИли напиши: нет',
-      Markup.keyboard([['нет'], ['❌ Отмена']]).resize()
+      '⏰ Когда напомнить?\n\nМожно выбрать кнопку или написать время вручную: 08:40',
+      timeMenu()
     );
   }
 
@@ -289,8 +303,8 @@ bot.hears('🗂 Без даты', async (ctx) => {
   state.step = 'time';
 
   await ctx.reply(
-    '⏰ Во сколько напомнить?\n\nНапример: 08:40\nИли напиши: нет',
-    Markup.keyboard([['нет'], ['❌ Отмена']]).resize()
+    '⏰ Когда напомнить?\n\nМожно выбрать кнопку или написать время вручную: 08:40',
+    timeMenu()
   );
 });
 
@@ -435,15 +449,37 @@ bot.on('text', async (ctx) => {
   }
 
   if (state.step === 'time') {
-    if (text.toLowerCase() === 'нет') {
+    if (text === '🕳 Без времени' || text.toLowerCase() === 'нет') {
       state.time = null;
       state.step = 'priority';
 
       return ctx.reply('⭐ Выбери приоритет:', priorityMenu());
     }
 
+    if (text === '⏰ Через 1 час') {
+      state.time = timeInOneHour();
+      state.step = 'priority';
+
+      return ctx.reply('⭐ Выбери приоритет:', priorityMenu());
+    }
+
+    if (text === '🌙 Вечером') {
+      state.time = '19:00';
+      state.step = 'priority';
+
+      return ctx.reply('⭐ Выбери приоритет:', priorityMenu());
+    }
+
+    if (text === '🌅 Завтра утром') {
+      state.taskDate = tomorrowDate();
+      state.time = '09:00';
+      state.step = 'priority';
+
+      return ctx.reply('⭐ Выбери приоритет:', priorityMenu());
+    }
+
     if (!isValidTime(text)) {
-      return ctx.reply('❗ Напиши время в формате 08:40 или напиши: нет');
+      return ctx.reply('❗ Выбери кнопку или напиши время в формате 08:40');
     }
 
     state.time = normalizeTime(text);
