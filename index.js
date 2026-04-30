@@ -32,6 +32,7 @@ const TEXT = {
     chooseDate: '📅 На когда задача?',
     chooseTime: '⏰ Когда задача?\n\nМожно выбрать кнопку или написать время вручную: 08:40',
     chooseReminder: '🔔 Когда напомнить?\n\nЕсли напоминание не нужно — нажми «🔕 Без напоминания».',
+    chooseRepeat: '🔁 Повторять задачу?',
     choosePriority: '⭐ Выбери приоритет:',
     cancelled: 'Ок, отменено.',
     mainMenu: 'Главное меню',
@@ -70,6 +71,7 @@ const TEXT = {
     chooseDate: '📅 When is the task?',
     chooseTime: '⏰ What time is the task?\n\nChoose a button or type time manually: 08:40',
     chooseReminder: '🔔 When should I remind you?\n\nIf you do not need a reminder, tap “🔕 No reminder”.',
+    chooseRepeat: '🔁 Repeat this task?',
     choosePriority: '⭐ Choose priority:',
     cancelled: 'Okay, cancelled.',
     mainMenu: 'Main menu',
@@ -108,6 +110,7 @@ const TEXT = {
     chooseDate: '📅 Für wann ist die Aufgabe?',
     chooseTime: '⏰ Um wie viel Uhr?\n\nWähle eine Taste oder schreibe die Zeit: 08:40',
     chooseReminder: '🔔 Wann soll ich erinnern?\n\nWenn keine Erinnerung nötig ist, tippe „🔕 Keine Erinnerung“.',
+    chooseRepeat: '🔁 Aufgabe wiederholen?',
     choosePriority: '⭐ Priorität wählen:',
     cancelled: 'Okay, abgebrochen.',
     mainMenu: 'Hauptmenü',
@@ -170,7 +173,10 @@ const BTN = {
     reminder5: '🔔 За 5 минут',
     reminder10: '🔔 За 10 минут',
     reminder30: '🔔 За 30 минут',
-    reminder60: '🔔 За 1 час'
+    reminder60: '🔔 За 1 час',
+    repeatNone: '🚫 Не повторять',
+    repeatDaily: '🔁 Каждый день',
+    repeatWeekly: '📆 Каждую неделю'
   },
   en: {
     newTask: '➕ New task',
@@ -200,7 +206,10 @@ const BTN = {
     reminder5: '🔔 5 minutes before',
     reminder10: '🔔 10 minutes before',
     reminder30: '🔔 30 minutes before',
-    reminder60: '🔔 1 hour before'
+    reminder60: '🔔 1 hour before',
+    repeatNone: '🚫 Do not repeat',
+    repeatDaily: '🔁 Every day',
+    repeatWeekly: '📆 Every week'
   },
   de: {
     newTask: '➕ Neue Aufgabe',
@@ -230,7 +239,10 @@ const BTN = {
     reminder5: '🔔 5 Minuten vorher',
     reminder10: '🔔 10 Minuten vorher',
     reminder30: '🔔 30 Minuten vorher',
-    reminder60: '🔔 1 Stunde vorher'
+    reminder60: '🔔 1 Stunde vorher',
+    repeatNone: '🚫 Nicht wiederholen',
+    repeatDaily: '🔁 Jeden Tag',
+    repeatWeekly: '📆 Jede Woche'
   }
 };
 
@@ -290,6 +302,8 @@ async function initDB() {
       time TEXT,
       priority TEXT DEFAULT 'medium',
       reminder_minutes INTEGER DEFAULT 10,
+      repeat_rule TEXT DEFAULT 'none',
+      repeat_created BOOLEAN DEFAULT false,
       done BOOLEAN DEFAULT false,
       notified BOOLEAN DEFAULT false,
       pre_notified BOOLEAN DEFAULT false,
@@ -301,6 +315,8 @@ async function initDB() {
   await pool.query(`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS time TEXT`);
   await pool.query(`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS priority TEXT DEFAULT 'medium'`);
   await pool.query(`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS reminder_minutes INTEGER DEFAULT 10`);
+  await pool.query(`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS repeat_rule TEXT DEFAULT 'none'`);
+  await pool.query(`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS repeat_created BOOLEAN DEFAULT false`);
   await pool.query(`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS done BOOLEAN DEFAULT false`);
   await pool.query(`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS notified BOOLEAN DEFAULT false`);
   await pool.query(`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS pre_notified BOOLEAN DEFAULT false`);
@@ -386,6 +402,15 @@ function reminderMenu(lang) {
     [b(lang, 'reminder5'), b(lang, 'reminder10')],
     [b(lang, 'reminder30'), b(lang, 'reminder60')],
     [b(lang, 'reminderExact'), b(lang, 'noReminder')],
+    [b(lang, 'cancel')]
+  ]).resize();
+}
+
+function repeatMenu(lang) {
+  return Markup.keyboard([
+    [b(lang, 'repeatNone')],
+    [b(lang, 'repeatDaily')],
+    [b(lang, 'repeatWeekly')],
     [b(lang, 'cancel')]
   ]).resize();
 }
@@ -478,6 +503,12 @@ function tomorrowDate(timezone) {
   return date.toISOString().slice(0, 10);
 }
 
+function addDaysToDate(dateText, days) {
+  const date = new Date(`${dateText}T12:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
 function timeInOneHour(timezone) {
   const date = new Date(Date.now() + 60 * 60 * 1000);
   return getPartsFromDate(date, timezone);
@@ -537,6 +568,12 @@ function reminderLabel(minutes, lang) {
   return `🔔 ${minutes} min`;
 }
 
+function repeatLabel(rule, lang) {
+  if (rule === 'daily') return b(lang, 'repeatDaily');
+  if (rule === 'weekly') return b(lang, 'repeatWeekly');
+  return b(lang, 'repeatNone');
+}
+
 function taskCard(task, lang) {
   return (
     `━━━━━━━━━━━━━━\n` +
@@ -544,6 +581,7 @@ function taskCard(task, lang) {
     `📅 ${formatDate(task.task_date)}\n` +
     `⏰ ${task.time || '—'}\n` +
     `🔔 ${reminderLabel(task.reminder_minutes, lang)}\n` +
+    `🔁 ${repeatLabel(task.repeat_rule, lang)}\n` +
     `⭐ ${priorityLabel(task.priority, lang)}\n` +
     `━━━━━━━━━━━━━━`
   );
@@ -568,6 +606,44 @@ async function sendTask(ctx, task) {
         Markup.button.callback('🔔', `remind_${task.id}`)
       ]
     ])
+  );
+}
+
+async function createNextRepeatTask(task) {
+  if (!task || task.repeat_created === true) return;
+  if (!task.repeat_rule || task.repeat_rule === 'none') return;
+  if (!task.task_date) return;
+
+  let nextDate = null;
+
+  if (task.repeat_rule === 'daily') {
+    nextDate = addDaysToDate(task.task_date, 1);
+  }
+
+  if (task.repeat_rule === 'weekly') {
+    nextDate = addDaysToDate(task.task_date, 7);
+  }
+
+  if (!nextDate) return;
+
+  await pool.query(
+    `INSERT INTO tasks 
+     (user_id, text, task_date, time, priority, reminder_minutes, repeat_rule)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+    [
+      task.user_id,
+      task.text,
+      nextDate,
+      task.time,
+      task.priority,
+      task.reminder_minutes,
+      task.repeat_rule
+    ]
+  );
+
+  await pool.query(
+    'UPDATE tasks SET repeat_created=true WHERE id=$1',
+    [task.id]
   );
 }
 
@@ -931,6 +1007,7 @@ bot.on('text', async (ctx) => {
     if (isButton(text, 'noTime') || text.toLowerCase() === 'нет' || text.toLowerCase() === 'no') {
       state.time = null;
       state.reminderMinutes = null;
+      state.repeatRule = 'none';
       state.step = 'priority';
 
       return ctx.reply(t(lang, 'choosePriority'), priorityMenu(lang));
@@ -979,6 +1056,17 @@ bot.on('text', async (ctx) => {
     else if (isButton(text, 'reminder60')) state.reminderMinutes = 60;
     else return ctx.reply(t(lang, 'chooseReminder'), reminderMenu(lang));
 
+    state.step = 'repeat';
+
+    return ctx.reply(t(lang, 'chooseRepeat'), repeatMenu(lang));
+  }
+
+  if (state.step === 'repeat') {
+    if (isButton(text, 'repeatNone')) state.repeatRule = 'none';
+    else if (isButton(text, 'repeatDaily')) state.repeatRule = 'daily';
+    else if (isButton(text, 'repeatWeekly')) state.repeatRule = 'weekly';
+    else return ctx.reply(t(lang, 'chooseRepeat'), repeatMenu(lang));
+
     state.step = 'priority';
 
     return ctx.reply(t(lang, 'choosePriority'), priorityMenu(lang));
@@ -996,15 +1084,16 @@ bot.on('text', async (ctx) => {
     }
 
     await pool.query(
-      `INSERT INTO tasks (user_id, text, task_date, time, priority, reminder_minutes)
-       VALUES ($1, $2, $3, $4, $5, $6)`,
+      `INSERT INTO tasks (user_id, text, task_date, time, priority, reminder_minutes, repeat_rule)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
       [
         userId,
         state.text,
         state.taskDate,
         state.time,
         priority,
-        state.reminderMinutes
+        state.reminderMinutes,
+        state.repeatRule || 'none'
       ]
     );
 
@@ -1014,6 +1103,7 @@ bot.on('text', async (ctx) => {
       `📅 ${formatDate(state.taskDate)}\n` +
       `⏰ ${state.time || '—'}\n` +
       `🔔 ${reminderLabel(state.reminderMinutes, lang)}\n` +
+      `🔁 ${repeatLabel(state.repeatRule || 'none', lang)}\n` +
       `⭐ ${priorityLabel(priority, lang)}`;
 
     delete userState[userId];
@@ -1025,10 +1115,21 @@ bot.on('text', async (ctx) => {
 // ================= КНОПКИ ПОД ЗАДАЧАМИ =================
 
 bot.action(/done_(\d+)/, async (ctx) => {
+  const res = await pool.query(
+    'SELECT * FROM tasks WHERE id=$1 AND user_id=$2',
+    [ctx.match[1], ctx.from.id]
+  );
+
+  const task = res.rows[0];
+
   await pool.query(
     'UPDATE tasks SET done=true WHERE id=$1 AND user_id=$2',
     [ctx.match[1], ctx.from.id]
   );
+
+  if (task) {
+    await createNextRepeatTask(task);
+  }
 
   await ctx.answerCbQuery('✅');
   await ctx.editMessageText('✅');
@@ -1167,6 +1268,8 @@ setInterval(async () => {
           'UPDATE tasks SET notified=true WHERE id=$1',
           [task.id]
         );
+
+        await createNextRepeatTask(task);
       }
     }
 
