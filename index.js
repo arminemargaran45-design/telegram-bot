@@ -29,6 +29,7 @@ const TEXT = {
     start: '👋 Привет! Я твой умный планировщик задач.\n\nНажми «➕ Новая задача», и я спрошу всё по шагам.',
     chooseTask: 'Выбери задачу из списка или добавь свою 👇',
     writeTask: '✍️ Напиши свою задачу.\n\nНапример: Забрать заказ',
+    chooseCategory: '🗂 Выбери категорию задачи:',
     chooseDate: '📅 На когда задача?',
     chooseTime: '⏰ Когда задача?\n\nМожно выбрать кнопку или написать время вручную: 08:40',
     chooseReminder: '🔔 Когда напомнить?\n\nЕсли напоминание не нужно — нажми «🔕 Без напоминания».',
@@ -40,8 +41,10 @@ const TEXT = {
     noTomorrow: '📭 На завтра задач нет',
     noActive: '📭 Активных задач пока нет',
     noDone: 'Пока нет выполненных задач',
+    noOverdue: '🎉 Просроченных задач нет',
     addTaskHint: 'Нажми «➕ Новая задача», чтобы добавить задачу.',
     taskAdded: '✅ Задача добавлена!',
+    taskUpdated: '✅ Задача обновлена!',
     settingsTitle: '⚙️ Настройки',
     digestTime: '☀️ Утренний план',
     timezone: '🌍 Часовой пояс',
@@ -62,12 +65,16 @@ const TEXT = {
     morning: '☀️ Доброе утро!',
     noTasksMorning: 'На сегодня задач нет. Отличный день, чтобы всё успеть 💪',
     todayTasks: 'Сегодня у тебя задач:',
-    stats: '📊 Статистика'
+    stats: '📊 Статистика',
+    editWhat: '✏️ Что изменить?',
+    editText: '✍️ Напиши новый текст задачи:',
+    overdueTitle: '⏳ Просроченные задачи'
   },
   en: {
     start: '👋 Hi! I am your smart task planner.\n\nTap “➕ New task”, and I will guide you step by step.',
     chooseTask: 'Choose a task from the list or add your own 👇',
     writeTask: '✍️ Write your own task.\n\nExample: Pick up an order',
+    chooseCategory: '🗂 Choose task category:',
     chooseDate: '📅 When is the task?',
     chooseTime: '⏰ What time is the task?\n\nChoose a button or type time manually: 08:40',
     chooseReminder: '🔔 When should I remind you?\n\nIf you do not need a reminder, tap “🔕 No reminder”.',
@@ -79,8 +86,10 @@ const TEXT = {
     noTomorrow: '📭 No tasks for tomorrow',
     noActive: '📭 No active tasks yet',
     noDone: 'No completed tasks yet',
+    noOverdue: '🎉 No overdue tasks',
     addTaskHint: 'Tap “➕ New task” to add a task.',
     taskAdded: '✅ Task added!',
+    taskUpdated: '✅ Task updated!',
     settingsTitle: '⚙️ Settings',
     digestTime: '☀️ Morning plan',
     timezone: '🌍 Time zone',
@@ -101,12 +110,16 @@ const TEXT = {
     morning: '☀️ Good morning!',
     noTasksMorning: 'No tasks for today. Great day to get everything done 💪',
     todayTasks: 'Your tasks for today:',
-    stats: '📊 Statistics'
+    stats: '📊 Statistics',
+    editWhat: '✏️ What do you want to edit?',
+    editText: '✍️ Write new task text:',
+    overdueTitle: '⏳ Overdue tasks'
   },
   de: {
     start: '👋 Hallo! Ich bin dein smarter Aufgabenplaner.\n\nTippe auf „➕ Neue Aufgabe“, und ich führe dich Schritt für Schritt.',
     chooseTask: 'Wähle eine Aufgabe aus der Liste oder füge eine eigene hinzu 👇',
     writeTask: '✍️ Schreibe deine eigene Aufgabe.\n\nBeispiel: Bestellung abholen',
+    chooseCategory: '🗂 Kategorie wählen:',
     chooseDate: '📅 Für wann ist die Aufgabe?',
     chooseTime: '⏰ Um wie viel Uhr?\n\nWähle eine Taste oder schreibe die Zeit: 08:40',
     chooseReminder: '🔔 Wann soll ich erinnern?\n\nWenn keine Erinnerung nötig ist, tippe „🔕 Keine Erinnerung“.',
@@ -118,8 +131,10 @@ const TEXT = {
     noTomorrow: '📭 Keine Aufgaben für morgen',
     noActive: '📭 Noch keine aktiven Aufgaben',
     noDone: 'Noch keine erledigten Aufgaben',
+    noOverdue: '🎉 Keine überfälligen Aufgaben',
     addTaskHint: 'Tippe auf „➕ Neue Aufgabe“, um eine Aufgabe hinzuzufügen.',
     taskAdded: '✅ Aufgabe hinzugefügt!',
+    taskUpdated: '✅ Aufgabe aktualisiert!',
     settingsTitle: '⚙️ Einstellungen',
     digestTime: '☀️ Morgenplan',
     timezone: '🌍 Zeitzone',
@@ -140,7 +155,10 @@ const TEXT = {
     morning: '☀️ Guten Morgen!',
     noTasksMorning: 'Keine Aufgaben für heute. Ein guter Tag, um alles zu schaffen 💪',
     todayTasks: 'Deine Aufgaben heute:',
-    stats: '📊 Statistik'
+    stats: '📊 Statistik',
+    editWhat: '✏️ Was möchtest du ändern?',
+    editText: '✍️ Schreibe den neuen Aufgabentext:',
+    overdueTitle: '⏳ Überfällige Aufgaben'
   }
 };
 
@@ -149,6 +167,7 @@ const BTN = {
     newTask: '➕ Новая задача',
     today: '📅 Сегодня',
     tomorrow: '🗓 Завтра',
+    overdue: '⏳ Просроченные',
     allTasks: '📋 Все задачи',
     doneTasks: '✅ Выполненные',
     stats: '📊 Статистика',
@@ -176,12 +195,18 @@ const BTN = {
     reminder60: '🔔 За 1 час',
     repeatNone: '🚫 Не повторять',
     repeatDaily: '🔁 Каждый день',
-    repeatWeekly: '📆 Каждую неделю'
+    repeatWeekly: '📆 Каждую неделю',
+    catHealth: '💪 Здоровье',
+    catWork: '💼 Работа',
+    catHome: '🏠 Дом',
+    catStudy: '📚 Учёба',
+    catOther: '✨ Другое'
   },
   en: {
     newTask: '➕ New task',
     today: '📅 Today',
     tomorrow: '🗓 Tomorrow',
+    overdue: '⏳ Overdue',
     allTasks: '📋 All tasks',
     doneTasks: '✅ Completed',
     stats: '📊 Statistics',
@@ -209,12 +234,18 @@ const BTN = {
     reminder60: '🔔 1 hour before',
     repeatNone: '🚫 Do not repeat',
     repeatDaily: '🔁 Every day',
-    repeatWeekly: '📆 Every week'
+    repeatWeekly: '📆 Every week',
+    catHealth: '💪 Health',
+    catWork: '💼 Work',
+    catHome: '🏠 Home',
+    catStudy: '📚 Study',
+    catOther: '✨ Other'
   },
   de: {
     newTask: '➕ Neue Aufgabe',
     today: '📅 Heute',
     tomorrow: '🗓 Morgen',
+    overdue: '⏳ Überfällig',
     allTasks: '📋 Alle Aufgaben',
     doneTasks: '✅ Erledigt',
     stats: '📊 Statistik',
@@ -242,7 +273,12 @@ const BTN = {
     reminder60: '🔔 1 Stunde vorher',
     repeatNone: '🚫 Nicht wiederholen',
     repeatDaily: '🔁 Jeden Tag',
-    repeatWeekly: '📆 Jede Woche'
+    repeatWeekly: '📆 Jede Woche',
+    catHealth: '💪 Gesundheit',
+    catWork: '💼 Arbeit',
+    catHome: '🏠 Zuhause',
+    catStudy: '📚 Lernen',
+    catOther: '✨ Andere'
   }
 };
 
@@ -301,6 +337,7 @@ async function initDB() {
       task_date TEXT,
       time TEXT,
       priority TEXT DEFAULT 'medium',
+      category TEXT DEFAULT 'other',
       reminder_minutes INTEGER DEFAULT 10,
       repeat_rule TEXT DEFAULT 'none',
       repeat_created BOOLEAN DEFAULT false,
@@ -314,6 +351,7 @@ async function initDB() {
   await pool.query(`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS task_date TEXT`);
   await pool.query(`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS time TEXT`);
   await pool.query(`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS priority TEXT DEFAULT 'medium'`);
+  await pool.query(`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS category TEXT DEFAULT 'other'`);
   await pool.query(`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS reminder_minutes INTEGER DEFAULT 10`);
   await pool.query(`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS repeat_rule TEXT DEFAULT 'none'`);
   await pool.query(`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS repeat_created BOOLEAN DEFAULT false`);
@@ -364,9 +402,9 @@ async function getUserSettings(userId) {
 function menu(lang) {
   return Markup.keyboard([
     [b(lang, 'newTask'), b(lang, 'today')],
-    [b(lang, 'tomorrow'), b(lang, 'allTasks')],
-    [b(lang, 'doneTasks'), b(lang, 'stats')],
-    [b(lang, 'settings')]
+    [b(lang, 'tomorrow'), b(lang, 'overdue')],
+    [b(lang, 'allTasks'), b(lang, 'doneTasks')],
+    [b(lang, 'stats'), b(lang, 'settings')]
   ]).resize();
 }
 
@@ -377,6 +415,15 @@ function taskTemplatesMenu(lang) {
     [tasks.water, tasks.workout],
     [tasks.groceries, tasks.call],
     [tasks.study, b(lang, 'ownTask')],
+    [b(lang, 'cancel')]
+  ]).resize();
+}
+
+function categoryMenu(lang) {
+  return Markup.keyboard([
+    [b(lang, 'catHealth'), b(lang, 'catWork')],
+    [b(lang, 'catHome'), b(lang, 'catStudy')],
+    [b(lang, 'catOther')],
     [b(lang, 'cancel')]
   ]).resize();
 }
@@ -574,10 +621,28 @@ function repeatLabel(rule, lang) {
   return b(lang, 'repeatNone');
 }
 
+function categoryLabel(category, lang) {
+  if (category === 'health') return b(lang, 'catHealth');
+  if (category === 'work') return b(lang, 'catWork');
+  if (category === 'home') return b(lang, 'catHome');
+  if (category === 'study') return b(lang, 'catStudy');
+  return b(lang, 'catOther');
+}
+
+function categoryFromText(text) {
+  if (text.includes('Здоровье') || text.includes('Health') || text.includes('Gesundheit')) return 'health';
+  if (text.includes('Работа') || text.includes('Work') || text.includes('Arbeit')) return 'work';
+  if (text.includes('Дом') || text.includes('Home') || text.includes('Zuhause')) return 'home';
+  if (text.includes('Учёба') || text.includes('Study') || text.includes('Lernen')) return 'study';
+  if (text.includes('Другое') || text.includes('Other') || text.includes('Andere')) return 'other';
+  return null;
+}
+
 function taskCard(task, lang) {
   return (
     `━━━━━━━━━━━━━━\n` +
     `📌 ${task.text}\n\n` +
+    `🗂 ${categoryLabel(task.category, lang)}\n` +
     `📅 ${formatDate(task.task_date)}\n` +
     `⏰ ${task.time || '—'}\n` +
     `🔔 ${reminderLabel(task.reminder_minutes, lang)}\n` +
@@ -596,14 +661,15 @@ async function sendTask(ctx, task) {
     Markup.inlineKeyboard([
       [
         Markup.button.callback('✅', `done_${task.id}`),
-        Markup.button.callback('⏰ +1h', `plus1_${task.id}`)
+        Markup.button.callback('✏️', `edit_${task.id}`)
       ],
       [
-        Markup.button.callback('🔁', `tomorrow_${task.id}`),
+        Markup.button.callback('⏰ +1h', `plus1_${task.id}`),
+        Markup.button.callback('🔁', `tomorrow_${task.id}`)
+      ],
+      [
+        Markup.button.callback('🔔', `remind_${task.id}`),
         Markup.button.callback('🗑', `delete_${task.id}`)
-      ],
-      [
-        Markup.button.callback('🔔', `remind_${task.id}`)
       ]
     ])
   );
@@ -616,26 +682,22 @@ async function createNextRepeatTask(task) {
 
   let nextDate = null;
 
-  if (task.repeat_rule === 'daily') {
-    nextDate = addDaysToDate(task.task_date, 1);
-  }
-
-  if (task.repeat_rule === 'weekly') {
-    nextDate = addDaysToDate(task.task_date, 7);
-  }
+  if (task.repeat_rule === 'daily') nextDate = addDaysToDate(task.task_date, 1);
+  if (task.repeat_rule === 'weekly') nextDate = addDaysToDate(task.task_date, 7);
 
   if (!nextDate) return;
 
   await pool.query(
     `INSERT INTO tasks 
-     (user_id, text, task_date, time, priority, reminder_minutes, repeat_rule)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+     (user_id, text, task_date, time, priority, category, reminder_minutes, repeat_rule)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
     [
       task.user_id,
       task.text,
       nextDate,
       task.time,
       task.priority,
+      task.category || 'other',
       task.reminder_minutes,
       task.repeat_rule
     ]
@@ -705,10 +767,7 @@ bot.hears(allButtons('digest'), async (ctx) => {
 
   userState[ctx.from.id] = { step: 'digest_time' };
 
-  await ctx.reply(
-    t(lang, 'writeDigest'),
-    Markup.keyboard([[b(lang, 'cancel')]]).resize()
-  );
+  await ctx.reply(t(lang, 'writeDigest'), Markup.keyboard([[b(lang, 'cancel')]]).resize());
 });
 
 bot.hears(allButtons('timezone'), async (ctx) => {
@@ -739,8 +798,16 @@ bot.hears(allButtons('today'), async (ctx) => {
   if (state?.step === 'date') {
     state.taskDate = todayDate(settings.timezone);
     state.step = 'time';
-
     return ctx.reply(t(lang, 'chooseTime'), timeMenu(lang));
+  }
+
+  if (state?.step === 'edit_date') {
+    await pool.query(
+      'UPDATE tasks SET task_date=$1, notified=false, pre_notified=false WHERE id=$2 AND user_id=$3',
+      [todayDate(settings.timezone), state.taskId, ctx.from.id]
+    );
+    delete userState[ctx.from.id];
+    return ctx.reply(t(lang, 'taskUpdated'), menu(lang));
   }
 
   if (state) return;
@@ -752,13 +819,9 @@ bot.hears(allButtons('today'), async (ctx) => {
     [ctx.from.id, todayDate(settings.timezone)]
   );
 
-  if (res.rows.length === 0) {
-    return ctx.reply(t(lang, 'noToday'), menu(lang));
-  }
+  if (res.rows.length === 0) return ctx.reply(t(lang, 'noToday'), menu(lang));
 
-  for (const task of res.rows) {
-    await sendTask(ctx, task);
-  }
+  for (const task of res.rows) await sendTask(ctx, task);
 });
 
 bot.hears(allButtons('tomorrow'), async (ctx) => {
@@ -769,8 +832,16 @@ bot.hears(allButtons('tomorrow'), async (ctx) => {
   if (state?.step === 'date') {
     state.taskDate = tomorrowDate(settings.timezone);
     state.step = 'time';
-
     return ctx.reply(t(lang, 'chooseTime'), timeMenu(lang));
+  }
+
+  if (state?.step === 'edit_date') {
+    await pool.query(
+      'UPDATE tasks SET task_date=$1, notified=false, pre_notified=false WHERE id=$2 AND user_id=$3',
+      [tomorrowDate(settings.timezone), state.taskId, ctx.from.id]
+    );
+    delete userState[ctx.from.id];
+    return ctx.reply(t(lang, 'taskUpdated'), menu(lang));
   }
 
   if (state) return;
@@ -782,13 +853,9 @@ bot.hears(allButtons('tomorrow'), async (ctx) => {
     [ctx.from.id, tomorrowDate(settings.timezone)]
   );
 
-  if (res.rows.length === 0) {
-    return ctx.reply(t(lang, 'noTomorrow'), menu(lang));
-  }
+  if (res.rows.length === 0) return ctx.reply(t(lang, 'noTomorrow'), menu(lang));
 
-  for (const task of res.rows) {
-    await sendTask(ctx, task);
-  }
+  for (const task of res.rows) await sendTask(ctx, task);
 });
 
 bot.hears(allButtons('noDate'), async (ctx) => {
@@ -796,12 +863,41 @@ bot.hears(allButtons('noDate'), async (ctx) => {
   const settings = await getUserSettings(ctx.from.id);
   const lang = settings.language || DEFAULT_LANGUAGE;
 
-  if (state?.step !== 'date') return;
+  if (state?.step === 'date') {
+    state.taskDate = null;
+    state.step = 'time';
+    return ctx.reply(t(lang, 'chooseTime'), timeMenu(lang));
+  }
 
-  state.taskDate = null;
-  state.step = 'time';
+  if (state?.step === 'edit_date') {
+    await pool.query(
+      'UPDATE tasks SET task_date=NULL, notified=false, pre_notified=false WHERE id=$1 AND user_id=$2',
+      [state.taskId, ctx.from.id]
+    );
+    delete userState[ctx.from.id];
+    return ctx.reply(t(lang, 'taskUpdated'), menu(lang));
+  }
+});
 
-  await ctx.reply(t(lang, 'chooseTime'), timeMenu(lang));
+bot.hears(allButtons('overdue'), async (ctx) => {
+  const settings = await getUserSettings(ctx.from.id);
+  const lang = settings.language || DEFAULT_LANGUAGE;
+  const today = todayDate(settings.timezone);
+
+  if (userState[ctx.from.id]) return;
+
+  const res = await pool.query(
+    `SELECT * FROM tasks
+     WHERE user_id=$1 AND done=false AND task_date IS NOT NULL AND task_date < $2
+     ORDER BY task_date ASC, time NULLS LAST`,
+    [ctx.from.id, today]
+  );
+
+  if (res.rows.length === 0) return ctx.reply(t(lang, 'noOverdue'), menu(lang));
+
+  await ctx.reply(t(lang, 'overdueTitle'), menu(lang));
+
+  for (const task of res.rows) await sendTask(ctx, task);
 });
 
 bot.hears(allButtons('allTasks'), async (ctx) => {
@@ -817,13 +913,9 @@ bot.hears(allButtons('allTasks'), async (ctx) => {
     [ctx.from.id]
   );
 
-  if (res.rows.length === 0) {
-    return ctx.reply(t(lang, 'noActive'), menu(lang));
-  }
+  if (res.rows.length === 0) return ctx.reply(t(lang, 'noActive'), menu(lang));
 
-  for (const task of res.rows) {
-    await sendTask(ctx, task);
-  }
+  for (const task of res.rows) await sendTask(ctx, task);
 });
 
 bot.hears(allButtons('doneTasks'), async (ctx) => {
@@ -837,14 +929,10 @@ bot.hears(allButtons('doneTasks'), async (ctx) => {
     [ctx.from.id]
   );
 
-  if (res.rows.length === 0) {
-    return ctx.reply(t(lang, 'noDone'), menu(lang));
-  }
+  if (res.rows.length === 0) return ctx.reply(t(lang, 'noDone'), menu(lang));
 
   await ctx.reply(
-    res.rows
-      .map((x, i) => `${i + 1}. ✅ ${x.text} — ${formatDate(x.task_date)} ${x.time || ''}`)
-      .join('\n'),
+    res.rows.map((x, i) => `${i + 1}. ✅ ${x.text} — ${formatDate(x.task_date)} ${x.time || ''}`).join('\n'),
     menu(lang)
   );
 });
@@ -855,18 +943,14 @@ bot.hears(allButtons('stats'), async (ctx) => {
 
   if (userState[ctx.from.id]) return;
 
-  const active = await pool.query(
-    'SELECT COUNT(*) FROM tasks WHERE user_id=$1 AND done=false',
-    [ctx.from.id]
-  );
-
-  const done = await pool.query(
-    'SELECT COUNT(*) FROM tasks WHERE user_id=$1 AND done=true',
-    [ctx.from.id]
-  );
-
+  const active = await pool.query('SELECT COUNT(*) FROM tasks WHERE user_id=$1 AND done=false', [ctx.from.id]);
+  const done = await pool.query('SELECT COUNT(*) FROM tasks WHERE user_id=$1 AND done=true', [ctx.from.id]);
   const today = await pool.query(
     'SELECT COUNT(*) FROM tasks WHERE user_id=$1 AND done=false AND task_date=$2',
+    [ctx.from.id, todayDate(settings.timezone)]
+  );
+  const overdue = await pool.query(
+    'SELECT COUNT(*) FROM tasks WHERE user_id=$1 AND done=false AND task_date IS NOT NULL AND task_date < $2',
     [ctx.from.id, todayDate(settings.timezone)]
   );
 
@@ -874,6 +958,7 @@ bot.hears(allButtons('stats'), async (ctx) => {
     `${t(lang, 'stats')}\n\n` +
     `📋 Active: ${active.rows[0].count}\n` +
     `📅 Today: ${today.rows[0].count}\n` +
+    `⏳ Overdue: ${overdue.rows[0].count}\n` +
     `✅ Done: ${done.rows[0].count}`,
     menu(lang)
   );
@@ -888,9 +973,7 @@ bot.on('text', async (ctx) => {
   const lang = settings.language || DEFAULT_LANGUAGE;
   const state = userState[userId];
 
-  if (!state) {
-    return ctx.reply(t(lang, 'addTaskHint'), menu(lang));
-  }
+  if (!state) return ctx.reply(t(lang, 'addTaskHint'), menu(lang));
 
   if (state.step === 'language') {
     let newLang = null;
@@ -899,17 +982,11 @@ bot.on('text', async (ctx) => {
     if (text.includes('English')) newLang = 'en';
     if (text.includes('Deutsch')) newLang = 'de';
 
-    if (!newLang) {
-      return ctx.reply(t(lang, 'chooseLanguage'), languageMenu());
-    }
+    if (!newLang) return ctx.reply(t(lang, 'chooseLanguage'), languageMenu());
 
-    await pool.query(
-      'UPDATE users_settings SET language=$1 WHERE user_id=$2',
-      [newLang, userId]
-    );
+    await pool.query('UPDATE users_settings SET language=$1 WHERE user_id=$2', [newLang, userId]);
 
     delete userState[userId];
-
     return ctx.reply(t(newLang, 'languageSaved'), menu(newLang));
   }
 
@@ -921,34 +998,22 @@ bot.on('text', async (ctx) => {
 
     const timezone = TIMEZONES[text];
 
-    if (!timezone) {
-      return ctx.reply(t(lang, 'chooseTimezone'), timezoneMenu(lang));
-    }
+    if (!timezone) return ctx.reply(t(lang, 'chooseTimezone'), timezoneMenu(lang));
 
-    await pool.query(
-      'UPDATE users_settings SET timezone=$1 WHERE user_id=$2',
-      [timezone, userId]
-    );
+    await pool.query('UPDATE users_settings SET timezone=$1 WHERE user_id=$2', [timezone, userId]);
 
     delete userState[userId];
-
     return ctx.reply(`${t(lang, 'timezoneSaved')} ${timezone}`, menu(lang));
   }
 
   if (state.step === 'timezone_manual') {
     const timezone = text.trim();
 
-    if (!isValidTimezone(timezone)) {
-      return ctx.reply(t(lang, 'timezoneError'));
-    }
+    if (!isValidTimezone(timezone)) return ctx.reply(t(lang, 'timezoneError'));
 
-    await pool.query(
-      'UPDATE users_settings SET timezone=$1 WHERE user_id=$2',
-      [timezone, userId]
-    );
+    await pool.query('UPDATE users_settings SET timezone=$1 WHERE user_id=$2', [timezone, userId]);
 
     delete userState[userId];
-
     return ctx.reply(`${t(lang, 'timezoneSaved')} ${timezone}`, menu(lang));
   }
 
@@ -961,20 +1026,64 @@ bot.on('text', async (ctx) => {
     const tasks = TASK_TEMPLATES[lang] || TASK_TEMPLATES.ru;
     const availableTasks = Object.values(tasks);
 
-    if (!availableTasks.includes(text)) {
-      return ctx.reply(t(lang, 'chooseTask'), taskTemplatesMenu(lang));
-    }
+    if (!availableTasks.includes(text)) return ctx.reply(t(lang, 'chooseTask'), taskTemplatesMenu(lang));
 
     state.text = cleanTaskText(text);
+    state.step = 'category';
+
+    return ctx.reply(t(lang, 'chooseCategory'), categoryMenu(lang));
+  }
+
+  if (state.step === 'text') {
+    state.text = text.trim();
+
+    if (!state.text) return ctx.reply(t(lang, 'writeTask'));
+
+    state.step = 'category';
+    return ctx.reply(t(lang, 'chooseCategory'), categoryMenu(lang));
+  }
+
+  if (state.step === 'category') {
+    const category = categoryFromText(text);
+
+    if (!category) return ctx.reply(t(lang, 'chooseCategory'), categoryMenu(lang));
+
+    state.category = category;
     state.step = 'date';
 
     return ctx.reply(t(lang, 'chooseDate'), dateMenu(lang));
   }
 
+  if (state.step === 'edit_text') {
+    const newText = text.trim();
+
+    if (!newText) return ctx.reply(t(lang, 'editText'));
+
+    await pool.query(
+      'UPDATE tasks SET text=$1 WHERE id=$2 AND user_id=$3',
+      [newText, state.taskId, userId]
+    );
+
+    delete userState[userId];
+    return ctx.reply(t(lang, 'taskUpdated'), menu(lang));
+  }
+
+  if (state.step === 'edit_category') {
+    const category = categoryFromText(text);
+
+    if (!category) return ctx.reply(t(lang, 'chooseCategory'), categoryMenu(lang));
+
+    await pool.query(
+      'UPDATE tasks SET category=$1 WHERE id=$2 AND user_id=$3',
+      [category, state.taskId, userId]
+    );
+
+    delete userState[userId];
+    return ctx.reply(t(lang, 'taskUpdated'), menu(lang));
+  }
+
   if (state.step === 'digest_time') {
-    if (!isValidTime(text)) {
-      return ctx.reply(t(lang, 'invalidDigest'));
-    }
+    if (!isValidTime(text)) return ctx.reply(t(lang, 'invalidDigest'));
 
     const time = normalizeTime(text);
 
@@ -987,24 +1096,41 @@ bot.on('text', async (ctx) => {
     );
 
     delete userState[userId];
-
     return ctx.reply(`${t(lang, 'digestSaved')} ${time}`, menu(lang));
   }
 
-  if (state.step === 'text') {
-    state.text = text.trim();
+  if (state.step === 'time' || state.step === 'edit_time') {
+    const isEdit = state.step === 'edit_time';
 
-    if (!state.text) {
-      return ctx.reply(t(lang, 'writeTask'));
+    async function saveTime(newDate, newTime) {
+      if (isEdit) {
+        await pool.query(
+          'UPDATE tasks SET task_date=COALESCE($1, task_date), time=$2, notified=false, pre_notified=false WHERE id=$3 AND user_id=$4',
+          [newDate, newTime, state.taskId, userId]
+        );
+
+        delete userState[userId];
+        return ctx.reply(t(lang, 'taskUpdated'), menu(lang));
+      }
+
+      state.time = newTime;
+      if (newDate) state.taskDate = newDate;
+      state.step = 'reminder';
+
+      return ctx.reply(t(lang, 'chooseReminder'), reminderMenu(lang));
     }
 
-    state.step = 'date';
-
-    return ctx.reply(t(lang, 'chooseDate'), dateMenu(lang));
-  }
-
-  if (state.step === 'time') {
     if (isButton(text, 'noTime') || text.toLowerCase() === 'нет' || text.toLowerCase() === 'no') {
+      if (isEdit) {
+        await pool.query(
+          'UPDATE tasks SET time=NULL, reminder_minutes=NULL, notified=false, pre_notified=false WHERE id=$1 AND user_id=$2',
+          [state.taskId, userId]
+        );
+
+        delete userState[userId];
+        return ctx.reply(t(lang, 'taskUpdated'), menu(lang));
+      }
+
       state.time = null;
       state.reminderMinutes = null;
       state.repeatRule = 'none';
@@ -1015,83 +1141,98 @@ bot.on('text', async (ctx) => {
 
     if (isButton(text, 'in1h')) {
       const oneHour = timeInOneHour(settings.timezone);
-      state.taskDate = oneHour.date;
-      state.time = oneHour.time;
-      state.step = 'reminder';
-
-      return ctx.reply(t(lang, 'chooseReminder'), reminderMenu(lang));
+      return saveTime(oneHour.date, oneHour.time);
     }
 
-    if (isButton(text, 'evening')) {
-      state.time = '19:00';
-      state.step = 'reminder';
+    if (isButton(text, 'evening')) return saveTime(null, '19:00');
 
-      return ctx.reply(t(lang, 'chooseReminder'), reminderMenu(lang));
-    }
+    if (isButton(text, 'tomorrowMorning')) return saveTime(tomorrowDate(settings.timezone), '09:00');
 
-    if (isButton(text, 'tomorrowMorning')) {
-      state.taskDate = tomorrowDate(settings.timezone);
-      state.time = '09:00';
-      state.step = 'reminder';
+    if (!isValidTime(text)) return ctx.reply(t(lang, 'invalidTime'));
 
-      return ctx.reply(t(lang, 'chooseReminder'), reminderMenu(lang));
-    }
-
-    if (!isValidTime(text)) {
-      return ctx.reply(t(lang, 'invalidTime'));
-    }
-
-    state.time = normalizeTime(text);
-    state.step = 'reminder';
-
-    return ctx.reply(t(lang, 'chooseReminder'), reminderMenu(lang));
+    return saveTime(null, normalizeTime(text));
   }
 
-  if (state.step === 'reminder') {
-    if (isButton(text, 'noReminder')) state.reminderMinutes = null;
-    else if (isButton(text, 'reminderExact')) state.reminderMinutes = 0;
-    else if (isButton(text, 'reminder5')) state.reminderMinutes = 5;
-    else if (isButton(text, 'reminder10')) state.reminderMinutes = 10;
-    else if (isButton(text, 'reminder30')) state.reminderMinutes = 30;
-    else if (isButton(text, 'reminder60')) state.reminderMinutes = 60;
+  if (state.step === 'reminder' || state.step === 'edit_reminder') {
+    let reminderMinutes;
+
+    if (isButton(text, 'noReminder')) reminderMinutes = null;
+    else if (isButton(text, 'reminderExact')) reminderMinutes = 0;
+    else if (isButton(text, 'reminder5')) reminderMinutes = 5;
+    else if (isButton(text, 'reminder10')) reminderMinutes = 10;
+    else if (isButton(text, 'reminder30')) reminderMinutes = 30;
+    else if (isButton(text, 'reminder60')) reminderMinutes = 60;
     else return ctx.reply(t(lang, 'chooseReminder'), reminderMenu(lang));
 
+    if (state.step === 'edit_reminder') {
+      await pool.query(
+        'UPDATE tasks SET reminder_minutes=$1, notified=false, pre_notified=false WHERE id=$2 AND user_id=$3',
+        [reminderMinutes, state.taskId, userId]
+      );
+
+      delete userState[userId];
+      return ctx.reply(t(lang, 'taskUpdated'), menu(lang));
+    }
+
+    state.reminderMinutes = reminderMinutes;
     state.step = 'repeat';
 
     return ctx.reply(t(lang, 'chooseRepeat'), repeatMenu(lang));
   }
 
-  if (state.step === 'repeat') {
-    if (isButton(text, 'repeatNone')) state.repeatRule = 'none';
-    else if (isButton(text, 'repeatDaily')) state.repeatRule = 'daily';
-    else if (isButton(text, 'repeatWeekly')) state.repeatRule = 'weekly';
+  if (state.step === 'repeat' || state.step === 'edit_repeat') {
+    let repeatRule;
+
+    if (isButton(text, 'repeatNone')) repeatRule = 'none';
+    else if (isButton(text, 'repeatDaily')) repeatRule = 'daily';
+    else if (isButton(text, 'repeatWeekly')) repeatRule = 'weekly';
     else return ctx.reply(t(lang, 'chooseRepeat'), repeatMenu(lang));
 
+    if (state.step === 'edit_repeat') {
+      await pool.query(
+        'UPDATE tasks SET repeat_rule=$1, repeat_created=false WHERE id=$2 AND user_id=$3',
+        [repeatRule, state.taskId, userId]
+      );
+
+      delete userState[userId];
+      return ctx.reply(t(lang, 'taskUpdated'), menu(lang));
+    }
+
+    state.repeatRule = repeatRule;
     state.step = 'priority';
 
     return ctx.reply(t(lang, 'choosePriority'), priorityMenu(lang));
   }
 
-  if (state.step === 'priority') {
+  if (state.step === 'priority' || state.step === 'edit_priority') {
     let priority = null;
 
     if (text.includes('Низкий') || text.includes('Low') || text.includes('Niedrig')) priority = 'low';
     else if (text.includes('Средний') || text.includes('Medium') || text.includes('Mittel')) priority = 'medium';
     else if (text.includes('Высокий') || text.includes('High') || text.includes('Hoch')) priority = 'high';
 
-    if (!priority) {
-      return ctx.reply(t(lang, 'choosePriority'), priorityMenu(lang));
+    if (!priority) return ctx.reply(t(lang, 'choosePriority'), priorityMenu(lang));
+
+    if (state.step === 'edit_priority') {
+      await pool.query(
+        'UPDATE tasks SET priority=$1 WHERE id=$2 AND user_id=$3',
+        [priority, state.taskId, userId]
+      );
+
+      delete userState[userId];
+      return ctx.reply(t(lang, 'taskUpdated'), menu(lang));
     }
 
     await pool.query(
-      `INSERT INTO tasks (user_id, text, task_date, time, priority, reminder_minutes, repeat_rule)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      `INSERT INTO tasks (user_id, text, task_date, time, priority, category, reminder_minutes, repeat_rule)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
       [
         userId,
         state.text,
         state.taskDate,
         state.time,
         priority,
+        state.category || 'other',
         state.reminderMinutes,
         state.repeatRule || 'none'
       ]
@@ -1100,6 +1241,7 @@ bot.on('text', async (ctx) => {
     const message =
       `${t(lang, 'taskAdded')}\n\n` +
       `📌 ${state.text}\n` +
+      `🗂 ${categoryLabel(state.category || 'other', lang)}\n` +
       `📅 ${formatDate(state.taskDate)}\n` +
       `⏰ ${state.time || '—'}\n` +
       `🔔 ${reminderLabel(state.reminderMinutes, lang)}\n` +
@@ -1107,12 +1249,110 @@ bot.on('text', async (ctx) => {
       `⭐ ${priorityLabel(priority, lang)}`;
 
     delete userState[userId];
-
     return ctx.reply(message, menu(lang));
   }
 });
 
 // ================= КНОПКИ ПОД ЗАДАЧАМИ =================
+
+bot.action(/edit_(\d+)/, async (ctx) => {
+  const settings = await getUserSettings(ctx.from.id);
+  const lang = settings.language || DEFAULT_LANGUAGE;
+  const taskId = ctx.match[1];
+
+  await ctx.answerCbQuery('✏️');
+
+  await ctx.reply(
+    t(lang, 'editWhat'),
+    Markup.inlineKeyboard([
+      [
+        Markup.button.callback('📌 Text', `edittext_${taskId}`),
+        Markup.button.callback('🗂 Category', `editcat_${taskId}`)
+      ],
+      [
+        Markup.button.callback('📅 Date', `editdate_${taskId}`),
+        Markup.button.callback('⏰ Time', `edittime_${taskId}`)
+      ],
+      [
+        Markup.button.callback('🔔 Reminder', `editrem_${taskId}`),
+        Markup.button.callback('🔁 Repeat', `editrep_${taskId}`)
+      ],
+      [
+        Markup.button.callback('⭐ Priority', `editpri_${taskId}`)
+      ]
+    ])
+  );
+});
+
+bot.action(/edittext_(\d+)/, async (ctx) => {
+  const settings = await getUserSettings(ctx.from.id);
+  const lang = settings.language || DEFAULT_LANGUAGE;
+
+  userState[ctx.from.id] = { step: 'edit_text', taskId: ctx.match[1] };
+
+  await ctx.answerCbQuery('✏️');
+  await ctx.reply(t(lang, 'editText'), Markup.keyboard([[b(lang, 'cancel')]]).resize());
+});
+
+bot.action(/editcat_(\d+)/, async (ctx) => {
+  const settings = await getUserSettings(ctx.from.id);
+  const lang = settings.language || DEFAULT_LANGUAGE;
+
+  userState[ctx.from.id] = { step: 'edit_category', taskId: ctx.match[1] };
+
+  await ctx.answerCbQuery('🗂');
+  await ctx.reply(t(lang, 'chooseCategory'), categoryMenu(lang));
+});
+
+bot.action(/editdate_(\d+)/, async (ctx) => {
+  const settings = await getUserSettings(ctx.from.id);
+  const lang = settings.language || DEFAULT_LANGUAGE;
+
+  userState[ctx.from.id] = { step: 'edit_date', taskId: ctx.match[1] };
+
+  await ctx.answerCbQuery('📅');
+  await ctx.reply(t(lang, 'chooseDate'), dateMenu(lang));
+});
+
+bot.action(/edittime_(\d+)/, async (ctx) => {
+  const settings = await getUserSettings(ctx.from.id);
+  const lang = settings.language || DEFAULT_LANGUAGE;
+
+  userState[ctx.from.id] = { step: 'edit_time', taskId: ctx.match[1] };
+
+  await ctx.answerCbQuery('⏰');
+  await ctx.reply(t(lang, 'chooseTime'), timeMenu(lang));
+});
+
+bot.action(/editrem_(\d+)/, async (ctx) => {
+  const settings = await getUserSettings(ctx.from.id);
+  const lang = settings.language || DEFAULT_LANGUAGE;
+
+  userState[ctx.from.id] = { step: 'edit_reminder', taskId: ctx.match[1] };
+
+  await ctx.answerCbQuery('🔔');
+  await ctx.reply(t(lang, 'chooseReminder'), reminderMenu(lang));
+});
+
+bot.action(/editrep_(\d+)/, async (ctx) => {
+  const settings = await getUserSettings(ctx.from.id);
+  const lang = settings.language || DEFAULT_LANGUAGE;
+
+  userState[ctx.from.id] = { step: 'edit_repeat', taskId: ctx.match[1] };
+
+  await ctx.answerCbQuery('🔁');
+  await ctx.reply(t(lang, 'chooseRepeat'), repeatMenu(lang));
+});
+
+bot.action(/editpri_(\d+)/, async (ctx) => {
+  const settings = await getUserSettings(ctx.from.id);
+  const lang = settings.language || DEFAULT_LANGUAGE;
+
+  userState[ctx.from.id] = { step: 'edit_priority', taskId: ctx.match[1] };
+
+  await ctx.answerCbQuery('⭐');
+  await ctx.reply(t(lang, 'choosePriority'), priorityMenu(lang));
+});
 
 bot.action(/done_(\d+)/, async (ctx) => {
   const res = await pool.query(
@@ -1127,9 +1367,7 @@ bot.action(/done_(\d+)/, async (ctx) => {
     [ctx.match[1], ctx.from.id]
   );
 
-  if (task) {
-    await createNextRepeatTask(task);
-  }
+  if (task) await createNextRepeatTask(task);
 
   await ctx.answerCbQuery('✅');
   await ctx.editMessageText('✅');
@@ -1244,18 +1482,11 @@ setInterval(async () => {
             `🕒 ${task.time}`
           );
 
-          await pool.query(
-            'UPDATE tasks SET pre_notified=true WHERE id=$1',
-            [task.id]
-          );
+          await pool.query('UPDATE tasks SET pre_notified=true WHERE id=$1', [task.id]);
         }
       }
 
-      if (
-        task.task_date === now.date &&
-        task.time === now.time &&
-        task.notified === false
-      ) {
+      if (task.task_date === now.date && task.time === now.time && task.notified === false) {
         await bot.telegram.sendMessage(
           task.user_id,
           `${t(lang, 'reminder')}\n\n` +
@@ -1264,10 +1495,7 @@ setInterval(async () => {
           `🕒 ${task.time}`
         );
 
-        await pool.query(
-          'UPDATE tasks SET notified=true WHERE id=$1',
-          [task.id]
-        );
+        await pool.query('UPDATE tasks SET notified=true WHERE id=$1', [task.id]);
 
         await createNextRepeatTask(task);
       }
