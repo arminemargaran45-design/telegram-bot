@@ -234,6 +234,30 @@ const BTN = {
   }
 };
 
+const TASK_TEMPLATES = {
+  ru: {
+    water: '💧 Выпить воду',
+    workout: '🏃 Тренировка',
+    groceries: '🛒 Купить продукты',
+    call: '📞 Позвонить',
+    study: '📚 Учёба'
+  },
+  en: {
+    water: '💧 Drink water',
+    workout: '🏃 Workout',
+    groceries: '🛒 Buy groceries',
+    call: '📞 Call',
+    study: '📚 Study'
+  },
+  de: {
+    water: '💧 Wasser trinken',
+    workout: '🏃 Training',
+    groceries: '🛒 Einkaufen',
+    call: '📞 Anrufen',
+    study: '📚 Lernen'
+  }
+};
+
 function t(lang, key) {
   return TEXT[lang]?.[key] || TEXT.ru[key];
 }
@@ -248,6 +272,10 @@ function allButtons(key) {
 
 function isButton(text, key) {
   return allButtons(key).includes(text);
+}
+
+function cleanTaskText(text) {
+  return text.replace(/^(\p{Emoji_Presentation}|\p{Extended_Pictographic})\s*/u, '').trim();
 }
 
 // ================= БАЗА =================
@@ -327,10 +355,12 @@ function menu(lang) {
 }
 
 function taskTemplatesMenu(lang) {
+  const tasks = TASK_TEMPLATES[lang] || TASK_TEMPLATES.ru;
+
   return Markup.keyboard([
-    ['💧 Water', '🏃 Workout'],
-    ['🛒 Groceries', '📞 Call'],
-    ['📚 Study', b(lang, 'ownTask')],
+    [tasks.water, tasks.workout],
+    [tasks.groceries, tasks.call],
+    [tasks.study, b(lang, 'ownTask')],
     [b(lang, 'cancel')]
   ]).resize();
 }
@@ -852,19 +882,14 @@ bot.on('text', async (ctx) => {
       return ctx.reply(t(lang, 'writeTask'), Markup.keyboard([[b(lang, 'cancel')]]).resize());
     }
 
-    const templates = {
-      '💧 Water': lang === 'ru' ? 'Выпить воду' : lang === 'de' ? 'Wasser trinken' : 'Drink water',
-      '🏃 Workout': lang === 'ru' ? 'Тренировка' : lang === 'de' ? 'Training' : 'Workout',
-      '🛒 Groceries': lang === 'ru' ? 'Купить продукты' : lang === 'de' ? 'Einkaufen' : 'Buy groceries',
-      '📞 Call': lang === 'ru' ? 'Позвонить' : lang === 'de' ? 'Anrufen' : 'Call',
-      '📚 Study': lang === 'ru' ? 'Учёба' : lang === 'de' ? 'Lernen' : 'Study'
-    };
+    const tasks = TASK_TEMPLATES[lang] || TASK_TEMPLATES.ru;
+    const availableTasks = Object.values(tasks);
 
-    if (!templates[text]) {
+    if (!availableTasks.includes(text)) {
       return ctx.reply(t(lang, 'chooseTask'), taskTemplatesMenu(lang));
     }
 
-    state.text = templates[text];
+    state.text = cleanTaskText(text);
     state.step = 'date';
 
     return ctx.reply(t(lang, 'chooseDate'), dateMenu(lang));
