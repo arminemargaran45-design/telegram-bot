@@ -55,6 +55,15 @@ function menu() {
   ]).resize();
 }
 
+function taskTemplatesMenu() {
+  return Markup.keyboard([
+    ['💧 Выпить воду', '🏃 Тренировка'],
+    ['🛒 Купить продукты', '📞 Позвонить'],
+    ['📚 Учёба', '✍️ Своя задача'],
+    ['❌ Отмена']
+  ]).resize();
+}
+
 function dateMenu() {
   return Markup.keyboard([
     ['📅 Сегодня', '🗓 Завтра'],
@@ -176,11 +185,11 @@ bot.hears('⬅️ Назад', async (ctx) => {
 });
 
 bot.hears('➕ Новая задача', async (ctx) => {
-  userState[ctx.from.id] = { step: 'text' };
+  userState[ctx.from.id] = { step: 'choose_task' };
 
   await ctx.reply(
-    '✍️ Что нужно сделать?\n\nНапример: Купить продукты',
-    Markup.keyboard([['❌ Отмена']]).resize()
+    'Выбери задачу из списка или добавь свою 👇',
+    taskTemplatesMenu()
   );
 });
 
@@ -360,6 +369,37 @@ bot.on('text', async (ctx) => {
 
   if (!state) {
     return ctx.reply('Нажми «➕ Новая задача», чтобы добавить задачу.', menu());
+  }
+
+  if (state.step === 'choose_task') {
+    if (text === '✍️ Своя задача') {
+      state.step = 'text';
+
+      return ctx.reply(
+        '✍️ Напиши свою задачу.\n\nНапример: Забрать заказ',
+        Markup.keyboard([['❌ Отмена']]).resize()
+      );
+    }
+
+    const templates = {
+      '💧 Выпить воду': 'Выпить воду',
+      '🏃 Тренировка': 'Тренировка',
+      '🛒 Купить продукты': 'Купить продукты',
+      '📞 Позвонить': 'Позвонить',
+      '📚 Учёба': 'Учёба'
+    };
+
+    if (!templates[text]) {
+      return ctx.reply(
+        'Выбери задачу кнопкой или нажми «✍️ Своя задача».',
+        taskTemplatesMenu()
+      );
+    }
+
+    state.text = templates[text];
+    state.step = 'date';
+
+    return ctx.reply('📅 На когда задача?', dateMenu());
   }
 
   if (state.step === 'digest_time') {
