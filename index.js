@@ -265,6 +265,9 @@ async function sendTask(ctx, task) {
       [
         Markup.button.callback('🔁 Завтра', `tomorrow_${task.id}`),
         Markup.button.callback('🗑 Удалить', `delete_${task.id}`)
+      ],
+      [
+        Markup.button.callback('🔔 Напомнить', `remind_${task.id}`)
       ]
     ])
   );
@@ -734,6 +737,29 @@ bot.action(/plus1_(\d+)/, async (ctx) => {
 
   await ctx.answerCbQuery(`Перенесено на ${newTime}`);
   await ctx.editMessageText(`⏰ Задача перенесена на ${newTime}`);
+});
+
+bot.action(/remind_(\d+)/, async (ctx) => {
+  const res = await pool.query(
+    'SELECT * FROM tasks WHERE id=$1 AND user_id=$2',
+    [ctx.match[1], ctx.from.id]
+  );
+
+  const task = res.rows[0];
+
+  if (!task) {
+    await ctx.answerCbQuery('Задача не найдена');
+    return;
+  }
+
+  await ctx.answerCbQuery('Напоминаю 🔔');
+
+  await ctx.reply(
+    `🔔 Напоминание прямо сейчас!\n\n` +
+    `📌 ${task.text}\n` +
+    `📅 ${formatDate(task.task_date)}\n` +
+    `🕒 ${task.time || 'Без времени'}`
+  );
 });
 
 // ================= НАПОМИНАНИЯ =================
