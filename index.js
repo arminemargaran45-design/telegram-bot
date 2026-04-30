@@ -21,18 +21,31 @@ async function initDB() {
       priority TEXT DEFAULT 'medium',
       done BOOLEAN DEFAULT false,
       notified BOOLEAN DEFAULT false,
+      pre_notified BOOLEAN DEFAULT false,
       created_at TIMESTAMP DEFAULT NOW()
     )
   `);
 
   await pool.query(`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS task_date TEXT`);
+  await pool.query(`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS pre_notified BOOLEAN DEFAULT false`);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS users_settings (
+      user_id BIGINT PRIMARY KEY,
+      digest_time TEXT DEFAULT '09:00',
+      digest_sent_date TEXT
+    )
+  `);
+
+  console.log('DB ready');
 }
 
 function menu() {
   return Markup.keyboard([
     ['➕ Новая задача', '📅 Сегодня'],
     ['🗓 Завтра', '📋 Все задачи'],
-    ['✅ Выполненные', '📊 Статистика']
+    ['✅ Выполненные', '📊 Статистика'],
+    ['⚙️ Настройки']
   ]).resize();
 }
 
@@ -48,6 +61,13 @@ function priorityMenu() {
   return Markup.keyboard([
     ['🟢 Низкий', '⚪ Средний', '🔥 Высокий'],
     ['❌ Отмена']
+  ]).resize();
+}
+
+function settingsMenu() {
+  return Markup.keyboard([
+    ['⏰ Время утреннего плана'],
+    ['⬅️ Назад']
   ]).resize();
 }
 
@@ -81,9 +101,34 @@ function priorityLabel(priority) {
   return '⚪ Средний';
 }
 
-bot.start((ctx) => {
+function addMinutes(time, minutesToAdd) {
+  const [h, m] = time.split(':').map(Number);
+  const date = new Date();
+  date.setHours(h);
+  date.setMinutes(m + minutesToAdd);
+  return date.toTimeString().slice(0, 5);
+}
+
+async function sendTask(ctx, task) {
+  await ctx.reply(
+    `📌 ${task.text}\n📅 ${formatDate(task.task_date)}\n⏰ ${task.time || 'Без времени'}\n⭐ ${priorityLabel(task.priority)}`,
+    Markup.inlineKeyboard([
+      [
+        Markup.button.callback('✅ Готово', `done_${task.id}`),
+        Markup.button.callback('🗑 Удалить', `delete_${task.id}`)
+      ]
+    ])
+  );
+}
+
+bot.start(async (ctx) => {
+  await pool.query(
+    'INSERT INTO users_settings (user_id) VALUES ($1) ON CONFLICT (user_id) DO NOTHING',
+    [ctx.from.id]
+  );
+
   ctx.reply(
-    '👋 Привет! Я твой планировщик задач.\n\nНажми «➕ Новая задача», и я спрошу всё по шагам.',
+    '👋 Привет! Я твой умный планировщик задач.\n\nЧто я умею:\n\n➕ создавать задачи\n📅 показывать задачи на сегодня и завтра\n🔔 напоминать за 10 минут\n☀️ присылать утренний план дня',
     menu()
   );
 });
@@ -93,9 +138,33 @@ bot.hears('❌ Отмена', (ctx) => {
   ctx.reply('Ок, отменено.', menu());
 });
 
+bot.hears('⬅️ Назад', (ctx) => {
+  delete userState[ctx.from.id];
+  ctx.reply('Главное меню', menu());
+});
+
 bot.hears('➕ Новая задача', (ctx) => {
   userState[ctx.from.id] = { step: 'text' };
   ctx.reply('✍️ Что нужно сделать?\n\nНапример: Купить продукты', Markup.keyboard([['❌ Отмена']]).resize());
+});
+
+bot.hears('⚙️ Настройки', async (ctx) => {
+  const res = await pool.query(
+    'SELECT * FROM users_settings WHERE user_id=$1',
+    [ctx.from.id]
+  );
+
+  const digestTime = res.rows[0]?.digest_time || '09:00';
+
+  ctx.reply(
+    `⚙️ Настройки\n\n☀️ Утренний план: ${digestTime}`,
+    settingsMenu()
+  );
+});
+
+bot.hears('⏰ Время утреннего плана', (ctx) => {
+  userState[ctx.from.id] = { step: 'digest_time' };
+  ctx.reply('Напиши время утреннего плана.\n\nНапример: 09:00');
 });
 
 bot.hears('📅 Сегодня', async (ctx) => {
@@ -174,23 +243,16 @@ bot.hears('📊 Статистика', async (ctx) => {
     [ctx.from.id]
   );
 
+  const today = await pool.query(
+    'SELECT COUNT(*) FROM tasks WHERE user_id=$1 AND done=false AND task_date=$2',
+    [ctx.from.id, todayDate()]
+  );
+
   ctx.reply(
-    `📊 Статистика\n\n📋 Активные: ${active.rows[0].count}\n✅ Выполненные: ${done.rows[0].count}`,
+    `📊 Статистика\n\n📋 Активные: ${active.rows[0].count}\n📅 Сегодня: ${today.rows[0].count}\n✅ Выполненные: ${done.rows[0].count}`,
     menu()
   );
 });
-
-async function sendTask(ctx, task) {
-  await ctx.reply(
-    `📌 ${task.text}\n📅 ${formatDate(task.task_date)}\n⏰ ${task.time || 'Без времени'}\n⭐ ${priorityLabel(task.priority)}`,
-    Markup.inlineKeyboard([
-      [
-        Markup.button.callback('✅ Готово', `done_${task.id}`),
-        Markup.button.callback('🗑 Удалить', `delete_${task.id}`)
-      ]
-    ])
-  );
-}
 
 bot.on('text', async (ctx) => {
   const userId = ctx.from.id;
@@ -199,6 +261,26 @@ bot.on('text', async (ctx) => {
 
   if (!state) {
     return ctx.reply('Нажми «➕ Новая задача», чтобы добавить задачу.', menu());
+  }
+
+  if (state.step === 'digest_time') {
+    if (!isValidTime(text)) {
+      return ctx.reply('❗ Напиши время в формате 09:00');
+    }
+
+    const time = normalizeTime(text);
+
+    await pool.query(
+      `INSERT INTO users_settings (user_id, digest_time)
+       VALUES ($1, $2)
+       ON CONFLICT (user_id)
+       DO UPDATE SET digest_time=$2`,
+      [userId, time]
+    );
+
+    delete userState[userId];
+
+    return ctx.reply(`✅ Утренний план будет приходить в ${time}`, menu());
   }
 
   if (state.step === 'text') {
@@ -275,25 +357,86 @@ bot.action(/delete_(\d+)/, async (ctx) => {
 });
 
 setInterval(async () => {
-  const now = new Date();
-  const currentDate = now.toISOString().slice(0, 10);
-  const currentTime = now.toTimeString().slice(0, 5);
+  try {
+    const now = new Date();
+    const currentDate = now.toISOString().slice(0, 10);
+    const currentTime = now.toTimeString().slice(0, 5);
+    const tenMinutesLater = addMinutes(currentTime, 10);
 
-  const res = await pool.query(
-    'SELECT * FROM tasks WHERE task_date=$1 AND time=$2 AND done=false AND notified=false',
-    [currentDate, currentTime]
-  );
-
-  for (const task of res.rows) {
-    await bot.telegram.sendMessage(
-      task.user_id,
-      `⏰ Напоминание!\n\n📌 ${task.text}\n📅 ${formatDate(task.task_date)}\n🕒 ${task.time}`
+    const pre = await pool.query(
+      `SELECT * FROM tasks
+       WHERE task_date=$1 AND time=$2 AND done=false AND pre_notified=false`,
+      [currentDate, tenMinutesLater]
     );
 
-    await pool.query(
-      'UPDATE tasks SET notified=true WHERE id=$1',
-      [task.id]
+    for (const task of pre.rows) {
+      await bot.telegram.sendMessage(
+        task.user_id,
+        `🔔 Скоро задача!\n\nЧерез 10 минут:\n📌 ${task.text}\n🕒 ${task.time}`
+      );
+
+      await pool.query(
+        'UPDATE tasks SET pre_notified=true WHERE id=$1',
+        [task.id]
+      );
+    }
+
+    const exact = await pool.query(
+      `SELECT * FROM tasks
+       WHERE task_date=$1 AND time=$2 AND done=false AND notified=false`,
+      [currentDate, currentTime]
     );
+
+    for (const task of exact.rows) {
+      await bot.telegram.sendMessage(
+        task.user_id,
+        `⏰ Напоминание!\n\n📌 ${task.text}\n📅 ${formatDate(task.task_date)}\n🕒 ${task.time}`
+      );
+
+      await pool.query(
+        'UPDATE tasks SET notified=true WHERE id=$1',
+        [task.id]
+      );
+    }
+
+    const digests = await pool.query(
+      `SELECT * FROM users_settings
+       WHERE digest_time=$1 AND (digest_sent_date IS NULL OR digest_sent_date != $2)`,
+      [currentTime, currentDate]
+    );
+
+    for (const user of digests.rows) {
+      const tasks = await pool.query(
+        `SELECT * FROM tasks
+         WHERE user_id=$1 AND task_date=$2 AND done=false
+         ORDER BY time NULLS LAST, id DESC`,
+        [user.user_id, currentDate]
+      );
+
+      if (tasks.rows.length > 0) {
+        const list = tasks.rows
+          .map((t, i) => `${i + 1}. ${t.time || '—'} — ${t.text}`)
+          .join('\n');
+
+        await bot.telegram.sendMessage(
+          user.user_id,
+          `☀️ Доброе утро!\n\nСегодня у тебя задач: ${tasks.rows.length}\n\n${list}`
+        );
+      } else {
+        await bot.telegram.sendMessage(
+          user.user_id,
+          '☀️ Доброе утро!\n\nНа сегодня задач нет. Отличный день, чтобы всё успеть 💪'
+        );
+      }
+
+      await pool.query(
+        'UPDATE users_settings SET digest_sent_date=$1 WHERE user_id=$2',
+        [currentDate, user.user_id]
+      );
+    }
+
+  } catch (e) {
+    console.log('TIMER ERROR', e.message);
   }
 }, 60000);
 
