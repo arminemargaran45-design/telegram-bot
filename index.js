@@ -10,6 +10,19 @@ const pool = new Pool({
 
 const userState = {};
 
+const DEFAULT_TIMEZONE = 'Europe/Moscow';
+
+const TIMEZONES = {
+  '🇷🇺 Москва': 'Europe/Moscow',
+  '🇦🇹 Вена': 'Europe/Vienna',
+  '🇩🇪 Берлин': 'Europe/Berlin',
+  '🇰🇿 Алматы': 'Asia/Almaty',
+  '🇦🇪 Дубай': 'Asia/Dubai',
+  '🇺🇸 Нью-Йорк': 'America/New_York',
+  '🇺🇸 Лос-Анджелес': 'America/Los_Angeles',
+  '🇬🇧 Лондон': 'Europe/London'
+};
+
 // ================= БАЗА =================
 
 async function initDB() {
@@ -39,9 +52,35 @@ async function initDB() {
     CREATE TABLE IF NOT EXISTS users_settings (
       user_id BIGINT PRIMARY KEY,
       digest_time TEXT DEFAULT '09:00',
-      digest_sent_date TEXT
+      digest_sent_date TEXT,
+      timezone TEXT DEFAULT 'Europe/Moscow'
     )
   `);
+
+  await pool.query(`ALTER TABLE users_settings ADD COLUMN IF NOT EXISTS timezone TEXT DEFAULT 'Europe/Moscow'`);
+}
+
+async function ensureUser(userId) {
+  await pool.query(
+    `INSERT INTO users_settings (user_id, timezone)
+     VALUES ($1, $2)
+     ON CONFLICT (user_id) DO NOTHING`,
+    [userId, DEFAULT_TIMEZONE]
+  );
+}
+
+async function getUserSettings(userId) {
+  await ensureUser(userId);
+
+  const res = await pool.query(
+    'SELECT * FROM users_settings WHERE user_id=$1',
+    [userId]
+  );
+
+  return res.rows[0] || {
+    digest_time: '09:00',
+    timezone: DEFAULT_TIMEZONE
+  };
 }
 
 // ================= КНОПКИ =================
@@ -90,20 +129,78 @@ function priorityMenu() {
 function settingsMenu() {
   return Markup.keyboard([
     ['⏰ Время утреннего плана'],
+    ['🌍 Часовой пояс'],
+    ['⬅️ Назад']
+  ]).resize();
+}
+
+function timezoneMenu() {
+  return Markup.keyboard([
+    ['🇷🇺 Москва', '🇦🇹 Вена'],
+    ['🇩🇪 Берлин', '🇰🇿 Алматы'],
+    ['🇦🇪 Дубай', '🇺🇸 Нью-Йорк'],
+    ['🇺🇸 Лос-Анджелес', '🇬🇧 Лондон'],
+    ['✍️ Ввести вручную'],
     ['⬅️ Назад']
   ]).resize();
 }
 
 // ================= ДАТА И ВРЕМЯ =================
 
-function todayDate() {
-  return new Date().toISOString().slice(0, 10);
+function getNowParts(timezone) {
+  const formatter = new Intl.DateTimeFormat('sv-SE', {
+    timeZone: timezone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  });
+
+  const parts = formatter.formatToParts(new Date());
+  const get = (type) => parts.find((p) => p.type === type).value;
+
+  return {
+    date: `${get('year')}-${get('month')}-${get('day')}`,
+    time: `${get('hour')}:${get('minute')}`
+  };
 }
 
-function tomorrowDate() {
-  const date = new Date();
-  date.setDate(date.getDate() + 1);
+function getPartsFromDate(date, timezone) {
+  const formatter = new Intl.DateTimeFormat('sv-SE', {
+    timeZone: timezone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  });
+
+  const parts = formatter.formatToParts(date);
+  const get = (type) => parts.find((p) => p.type === type).value;
+
+  return {
+    date: `${get('year')}-${get('month')}-${get('day')}`,
+    time: `${get('hour')}:${get('minute')}`
+  };
+}
+
+function todayDate(timezone) {
+  return getNowParts(timezone).date;
+}
+
+function tomorrowDate(timezone) {
+  const today = todayDate(timezone);
+  const date = new Date(`${today}T12:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + 1);
   return date.toISOString().slice(0, 10);
+}
+
+function timeInOneHour(timezone) {
+  const date = new Date(Date.now() + 60 * 60 * 1000);
+  return getPartsFromDate(date, timezone);
 }
 
 function formatDate(value) {
@@ -129,10 +226,13 @@ function addMinutes(time, minutes) {
   return date.toTimeString().slice(0, 5);
 }
 
-function timeInOneHour() {
-  const date = new Date();
-  date.setHours(date.getHours() + 1);
-  return date.toTimeString().slice(0, 5);
+function isValidTimezone(timezone) {
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone: timezone }).format(new Date());
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 // ================= ОФОРМЛЕНИЕ =================
@@ -173,11 +273,7 @@ async function sendTask(ctx, task) {
 // ================= СТАРТ =================
 
 bot.start(async (ctx) => {
-  await pool.query(
-    'INSERT INTO users_settings (user_id) VALUES ($1) ON CONFLICT (user_id) DO NOTHING',
-    [ctx.from.id]
-  );
-
+  await ensureUser(ctx.from.id);
   delete userState[ctx.from.id];
 
   await ctx.reply(
@@ -199,6 +295,7 @@ bot.hears('⬅️ Назад', async (ctx) => {
 });
 
 bot.hears('➕ Новая задача', async (ctx) => {
+  await ensureUser(ctx.from.id);
   userState[ctx.from.id] = { step: 'choose_task' };
 
   await ctx.reply(
@@ -208,15 +305,12 @@ bot.hears('➕ Новая задача', async (ctx) => {
 });
 
 bot.hears('⚙️ Настройки', async (ctx) => {
-  const res = await pool.query(
-    'SELECT * FROM users_settings WHERE user_id=$1',
-    [ctx.from.id]
-  );
-
-  const digestTime = res.rows[0]?.digest_time || '09:00';
+  const settings = await getUserSettings(ctx.from.id);
 
   await ctx.reply(
-    `⚙️ Настройки\n\n☀️ Утренний план: ${digestTime}`,
+    `⚙️ Настройки\n\n` +
+    `☀️ Утренний план: ${settings.digest_time || '09:00'}\n` +
+    `🌍 Часовой пояс: ${settings.timezone || DEFAULT_TIMEZONE}`,
     settingsMenu()
   );
 });
@@ -230,13 +324,23 @@ bot.hears('⏰ Время утреннего плана', async (ctx) => {
   );
 });
 
+bot.hears('🌍 Часовой пояс', async (ctx) => {
+  userState[ctx.from.id] = { step: 'timezone' };
+
+  await ctx.reply(
+    'Выбери свой часовой пояс 👇\n\nЕсли твоего города нет — нажми «✍️ Ввести вручную».',
+    timezoneMenu()
+  );
+});
+
 // ================= СПИСКИ ЗАДАЧ =================
 
 bot.hears('📅 Сегодня', async (ctx) => {
   const state = userState[ctx.from.id];
+  const settings = await getUserSettings(ctx.from.id);
 
   if (state?.step === 'date') {
-    state.taskDate = todayDate();
+    state.taskDate = todayDate(settings.timezone);
     state.step = 'time';
 
     return ctx.reply(
@@ -251,7 +355,7 @@ bot.hears('📅 Сегодня', async (ctx) => {
     `SELECT * FROM tasks 
      WHERE user_id=$1 AND done=false AND task_date=$2 
      ORDER BY time NULLS LAST, id DESC`,
-    [ctx.from.id, todayDate()]
+    [ctx.from.id, todayDate(settings.timezone)]
   );
 
   if (res.rows.length === 0) {
@@ -265,9 +369,10 @@ bot.hears('📅 Сегодня', async (ctx) => {
 
 bot.hears('🗓 Завтра', async (ctx) => {
   const state = userState[ctx.from.id];
+  const settings = await getUserSettings(ctx.from.id);
 
   if (state?.step === 'date') {
-    state.taskDate = tomorrowDate();
+    state.taskDate = tomorrowDate(settings.timezone);
     state.step = 'time';
 
     return ctx.reply(
@@ -282,7 +387,7 @@ bot.hears('🗓 Завтра', async (ctx) => {
     `SELECT * FROM tasks 
      WHERE user_id=$1 AND done=false AND task_date=$2 
      ORDER BY time NULLS LAST, id DESC`,
-    [ctx.from.id, tomorrowDate()]
+    [ctx.from.id, tomorrowDate(settings.timezone)]
   );
 
   if (res.rows.length === 0) {
@@ -348,6 +453,7 @@ bot.hears('✅ Выполненные', async (ctx) => {
 });
 
 bot.hears('📊 Статистика', async (ctx) => {
+  const settings = await getUserSettings(ctx.from.id);
   if (userState[ctx.from.id]) return;
 
   const active = await pool.query(
@@ -362,7 +468,7 @@ bot.hears('📊 Статистика', async (ctx) => {
 
   const today = await pool.query(
     'SELECT COUNT(*) FROM tasks WHERE user_id=$1 AND done=false AND task_date=$2',
-    [ctx.from.id, todayDate()]
+    [ctx.from.id, todayDate(settings.timezone)]
   );
 
   await ctx.reply(
@@ -381,8 +487,54 @@ bot.on('text', async (ctx) => {
   const text = ctx.message.text;
   const state = userState[userId];
 
+  await ensureUser(userId);
+
   if (!state) {
     return ctx.reply('Нажми «➕ Новая задача», чтобы добавить задачу.', menu());
+  }
+
+  if (state.step === 'timezone') {
+    if (text === '✍️ Ввести вручную') {
+      state.step = 'timezone_manual';
+
+      return ctx.reply(
+        'Напиши часовой пояс текстом.\n\nНапример:\nEurope/Vienna\nEurope/Moscow\nAsia/Almaty\nAmerica/New_York'
+      );
+    }
+
+    const timezone = TIMEZONES[text];
+
+    if (!timezone) {
+      return ctx.reply('Выбери часовой пояс кнопкой или нажми «✍️ Ввести вручную».', timezoneMenu());
+    }
+
+    await pool.query(
+      'UPDATE users_settings SET timezone=$1 WHERE user_id=$2',
+      [timezone, userId]
+    );
+
+    delete userState[userId];
+
+    return ctx.reply(`✅ Часовой пояс сохранён: ${timezone}`, menu());
+  }
+
+  if (state.step === 'timezone_manual') {
+    const timezone = text.trim();
+
+    if (!isValidTimezone(timezone)) {
+      return ctx.reply(
+        '❗ Не получилось найти такой часовой пояс.\n\nПример правильного формата:\nEurope/Vienna\nEurope/Moscow\nAsia/Dubai'
+      );
+    }
+
+    await pool.query(
+      'UPDATE users_settings SET timezone=$1 WHERE user_id=$2',
+      [timezone, userId]
+    );
+
+    delete userState[userId];
+
+    return ctx.reply(`✅ Часовой пояс сохранён: ${timezone}`, menu());
   }
 
   if (state.step === 'choose_task') {
@@ -449,6 +601,8 @@ bot.on('text', async (ctx) => {
   }
 
   if (state.step === 'time') {
+    const settings = await getUserSettings(userId);
+
     if (text === '🕳 Без времени' || text.toLowerCase() === 'нет') {
       state.time = null;
       state.step = 'priority';
@@ -457,7 +611,9 @@ bot.on('text', async (ctx) => {
     }
 
     if (text === '⏰ Через 1 час') {
-      state.time = timeInOneHour();
+      const oneHour = timeInOneHour(settings.timezone);
+      state.taskDate = oneHour.date;
+      state.time = oneHour.time;
       state.step = 'priority';
 
       return ctx.reply('⭐ Выбери приоритет:', priorityMenu());
@@ -471,7 +627,7 @@ bot.on('text', async (ctx) => {
     }
 
     if (text === '🌅 Завтра утром') {
-      state.taskDate = tomorrowDate();
+      state.taskDate = tomorrowDate(settings.timezone);
       state.time = '09:00';
       state.step = 'priority';
 
@@ -541,11 +697,13 @@ bot.action(/delete_(\d+)/, async (ctx) => {
 });
 
 bot.action(/tomorrow_(\d+)/, async (ctx) => {
+  const settings = await getUserSettings(ctx.from.id);
+
   await pool.query(
     `UPDATE tasks 
      SET task_date=$1, notified=false, pre_notified=false 
      WHERE id=$2 AND user_id=$3`,
-    [tomorrowDate(), ctx.match[1], ctx.from.id]
+    [tomorrowDate(settings.timezone), ctx.match[1], ctx.from.id]
   );
 
   await ctx.answerCbQuery('Перенесено на завтра 🔁');
@@ -582,81 +740,94 @@ bot.action(/plus1_(\d+)/, async (ctx) => {
 
 setInterval(async () => {
   try {
-    const now = new Date();
-    const currentDate = now.toISOString().slice(0, 10);
-    const currentTime = now.toTimeString().slice(0, 5);
-    const tenMinutesLater = addMinutes(currentTime, 10);
+    const tasks = await pool.query(`
+      SELECT 
+        tasks.*,
+        users_settings.timezone,
+        users_settings.digest_time,
+        users_settings.digest_sent_date
+      FROM tasks
+      LEFT JOIN users_settings ON tasks.user_id = users_settings.user_id
+      WHERE tasks.done=false
+      AND tasks.time IS NOT NULL
+    `);
 
-    const pre = await pool.query(
-      `SELECT * FROM tasks
-       WHERE task_date=$1 AND time=$2 AND done=false AND pre_notified=false`,
-      [currentDate, tenMinutesLater]
-    );
+    for (const task of tasks.rows) {
+      const timezone = task.timezone || DEFAULT_TIMEZONE;
+      const now = getNowParts(timezone);
+      const tenMinutesLater = addMinutes(now.time, 10);
 
-    for (const task of pre.rows) {
-      await bot.telegram.sendMessage(
-        task.user_id,
-        `🔔 Скоро задача!\n\nЧерез 10 минут:\n📌 ${task.text}\n🕒 ${task.time}`
-      );
-
-      await pool.query(
-        'UPDATE tasks SET pre_notified=true WHERE id=$1',
-        [task.id]
-      );
-    }
-
-    const exact = await pool.query(
-      `SELECT * FROM tasks
-       WHERE task_date=$1 AND time=$2 AND done=false AND notified=false`,
-      [currentDate, currentTime]
-    );
-
-    for (const task of exact.rows) {
-      await bot.telegram.sendMessage(
-        task.user_id,
-        `⏰ Напоминание!\n\n📌 ${task.text}\n📅 ${formatDate(task.task_date)}\n🕒 ${task.time}`
-      );
-
-      await pool.query(
-        'UPDATE tasks SET notified=true WHERE id=$1',
-        [task.id]
-      );
-    }
-
-    const digests = await pool.query(
-      `SELECT * FROM users_settings
-       WHERE digest_time=$1 AND (digest_sent_date IS NULL OR digest_sent_date != $2)`,
-      [currentTime, currentDate]
-    );
-
-    for (const user of digests.rows) {
-      const tasks = await pool.query(
-        `SELECT * FROM tasks
-         WHERE user_id=$1 AND task_date=$2 AND done=false
-         ORDER BY time NULLS LAST, id DESC`,
-        [user.user_id, currentDate]
-      );
-
-      if (tasks.rows.length > 0) {
-        const list = tasks.rows
-          .map((t, i) => `${i + 1}. ${t.time || '—'} — ${t.text}`)
-          .join('\n');
-
+      if (
+        task.task_date === now.date &&
+        task.time === tenMinutesLater &&
+        task.pre_notified === false
+      ) {
         await bot.telegram.sendMessage(
-          user.user_id,
-          `☀️ Доброе утро!\n\nСегодня у тебя задач: ${tasks.rows.length}\n\n${list}`
+          task.user_id,
+          `🔔 Скоро задача!\n\nЧерез 10 минут:\n📌 ${task.text}\n🕒 ${task.time}`
         );
-      } else {
-        await bot.telegram.sendMessage(
-          user.user_id,
-          '☀️ Доброе утро!\n\nНа сегодня задач нет. Отличный день, чтобы всё успеть 💪'
+
+        await pool.query(
+          'UPDATE tasks SET pre_notified=true WHERE id=$1',
+          [task.id]
         );
       }
 
-      await pool.query(
-        'UPDATE users_settings SET digest_sent_date=$1 WHERE user_id=$2',
-        [currentDate, user.user_id]
-      );
+      if (
+        task.task_date === now.date &&
+        task.time === now.time &&
+        task.notified === false
+      ) {
+        await bot.telegram.sendMessage(
+          task.user_id,
+          `⏰ Напоминание!\n\n📌 ${task.text}\n📅 ${formatDate(task.task_date)}\n🕒 ${task.time}`
+        );
+
+        await pool.query(
+          'UPDATE tasks SET notified=true WHERE id=$1',
+          [task.id]
+        );
+      }
+    }
+
+    const users = await pool.query('SELECT * FROM users_settings');
+
+    for (const user of users.rows) {
+      const timezone = user.timezone || DEFAULT_TIMEZONE;
+      const now = getNowParts(timezone);
+
+      if (
+        user.digest_time === now.time &&
+        user.digest_sent_date !== now.date
+      ) {
+        const todayTasks = await pool.query(
+          `SELECT * FROM tasks
+           WHERE user_id=$1 AND task_date=$2 AND done=false
+           ORDER BY time NULLS LAST, id DESC`,
+          [user.user_id, now.date]
+        );
+
+        if (todayTasks.rows.length > 0) {
+          const list = todayTasks.rows
+            .map((t, i) => `${i + 1}. ${t.time || '—'} — ${t.text}`)
+            .join('\n');
+
+          await bot.telegram.sendMessage(
+            user.user_id,
+            `☀️ Доброе утро!\n\nСегодня у тебя задач: ${todayTasks.rows.length}\n\n${list}`
+          );
+        } else {
+          await bot.telegram.sendMessage(
+            user.user_id,
+            '☀️ Доброе утро!\n\nНа сегодня задач нет. Отличный день, чтобы всё успеть 💪'
+          );
+        }
+
+        await pool.query(
+          'UPDATE users_settings SET digest_sent_date=$1 WHERE user_id=$2',
+          [now.date, user.user_id]
+        );
+      }
     }
   } catch (e) {
     console.log('TIMER ERROR', e.message);
