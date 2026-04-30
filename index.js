@@ -2,14 +2,13 @@ const { Telegraf } = require('telegraf');
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
 
-// функция получения московского времени
+// московское время
 function getMoscowTime() {
   return new Date(
     new Date().toLocaleString("en-US", { timeZone: "Europe/Moscow" })
   );
 }
 
-// парсинг времени типа "15:00"
 function parseTime(text) {
   const match = text.match(/(\d{1,2}):(\d{2})/);
   if (!match) return null;
@@ -25,7 +24,7 @@ function parseTime(text) {
 }
 
 bot.start((ctx) => {
-  ctx.reply('Бот работает 🚀\nНапиши задачу и время (например: Обед 15:00)');
+  ctx.reply('Бот работает 🚀');
 });
 
 bot.on('text', (ctx) => {
@@ -42,7 +41,7 @@ bot.on('text', (ctx) => {
     minute: '2-digit'
   });
 
-  ctx.reply(`✅ Задача добавлена\n⏰ Время: ${formatted}`);
+  ctx.reply(`⏰ Время: ${formatted}`);
 });
 
 bot.launch();
