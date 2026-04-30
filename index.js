@@ -8,6 +8,8 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false }
 });
 
+const userState = {};
+
 async function initDB() {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS tasks (
@@ -30,30 +32,36 @@ function menu() {
   ]).resize();
 }
 
-function parseTask(text) {
-  const match = text.match(/(.+?)\s+(\d{1,2}[:.]\d{2})$/);
+function priorityMenu() {
+  return Markup.keyboard([
+    ['🟢 Низкий', '⚪ Средний', '🔥 Высокий'],
+    ['❌ Отмена']
+  ]).resize();
+}
 
-  if (!match) return null;
+function isValidTime(text) {
+  return /^([01]?\d|2[0-3])[:.][0-5]\d$/.test(text);
+}
 
-  const taskText = match[1].trim();
-  const time = match[2].replace('.', ':');
-
-  let priority = 'medium';
-  if (/срочно|важно/i.test(taskText)) priority = 'high';
-  if (/низк|не срочно/i.test(taskText)) priority = 'low';
-
-  return { taskText, time, priority };
+function normalizeTime(text) {
+  return text.replace('.', ':').padStart(5, '0');
 }
 
 bot.start((ctx) => {
   ctx.reply(
-    '👋 Привет! Я твой планировщик задач.\n\nНапиши задачу так:\n\nзавтрак 08:40\nобед 15:00\nсрочно встреча 18:30',
+    '👋 Привет! Я твой планировщик задач.\n\nНажми «➕ Новая задача», и я всё спрошу по шагам.',
     menu()
   );
 });
 
+bot.hears('❌ Отмена', (ctx) => {
+  delete userState[ctx.from.id];
+  ctx.reply('Ок, отменено.', menu());
+});
+
 bot.hears('➕ Новая задача', (ctx) => {
-  ctx.reply('Напиши задачу так:\n\nзавтрак 08:40');
+  userState[ctx.from.id] = { step: 'text' };
+  ctx.reply('✍️ Что нужно сделать?\n\nНапример: Завтрак', Markup.keyboard([['❌ Отмена']]).resize());
 });
 
 bot.hears('📋 Все задачи', async (ctx) => {
@@ -68,7 +76,7 @@ bot.hears('📋 Все задачи', async (ctx) => {
 
   for (const task of res.rows) {
     await ctx.reply(
-      `📌 ${task.text}\n⏰ ${task.time}`,
+      `📌 ${task.text}\n⏰ ${task.time || 'Без времени'}\n⭐ ${task.priority}`,
       Markup.inlineKeyboard([
         [
           Markup.button.callback('✅ Готово', `done_${task.id}`),
@@ -90,7 +98,7 @@ bot.hears('✅ Выполненные', async (ctx) => {
   }
 
   ctx.reply(
-    res.rows.map((t, i) => `${i + 1}. ✅ ${t.text} — ${t.time}`).join('\n'),
+    res.rows.map((t, i) => `${i + 1}. ✅ ${t.text} — ${t.time || 'Без времени'}`).join('\n'),
     menu()
   );
 });
@@ -113,27 +121,57 @@ bot.hears('📊 Статистика', async (ctx) => {
 });
 
 bot.on('text', async (ctx) => {
+  const userId = ctx.from.id;
   const text = ctx.message.text;
+  const state = userState[userId];
 
-  if (['➕ Новая задача', '📋 Все задачи', '✅ Выполненные', '📊 Статистика'].includes(text)) {
-    return;
+  if (!state) {
+    return ctx.reply('Нажми «➕ Новая задача», чтобы добавить задачу.', menu());
   }
 
-  const task = parseTask(text);
+  if (state.step === 'text') {
+    state.text = text.trim();
+    state.step = 'time';
 
-  if (!task) {
-    return ctx.reply('❗ Не понял задачу.\n\nНапиши так:\nзавтрак 08:40');
+    return ctx.reply('⏰ Во сколько напомнить?\n\nНапример: 08:40\nИли напиши: нет');
   }
 
-  await pool.query(
-    'INSERT INTO tasks (user_id, text, time, priority) VALUES ($1, $2, $3, $4)',
-    [ctx.from.id, task.taskText, task.time, task.priority]
-  );
+  if (state.step === 'time') {
+    if (text.toLowerCase() === 'нет') {
+      state.time = null;
+      state.step = 'priority';
+      return ctx.reply('⭐ Выбери приоритет:', priorityMenu());
+    }
 
-  ctx.reply(
-    `✅ Задача добавлена!\n\n📌 ${task.taskText}\n⏰ ${task.time}`,
-    menu()
-  );
+    if (!isValidTime(text)) {
+      return ctx.reply('❗ Напиши время в формате 08:40');
+    }
+
+    state.time = normalizeTime(text);
+    state.step = 'priority';
+
+    return ctx.reply('⭐ Выбери приоритет:', priorityMenu());
+  }
+
+  if (state.step === 'priority') {
+    let priority = 'medium';
+
+    if (text === '🟢 Низкий') priority = 'low';
+    if (text === '⚪ Средний') priority = 'medium';
+    if (text === '🔥 Высокий') priority = 'high';
+
+    await pool.query(
+      'INSERT INTO tasks (user_id, text, time, priority) VALUES ($1, $2, $3, $4)',
+      [userId, state.text, state.time, priority]
+    );
+
+    delete userState[userId];
+
+    return ctx.reply(
+      `✅ Задача добавлена!\n\n📌 ${state.text}\n⏰ ${state.time || 'Без времени'}\n⭐ ${priority}`,
+      menu()
+    );
+  }
 });
 
 bot.action(/done_(\d+)/, async (ctx) => {
