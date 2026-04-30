@@ -683,10 +683,6 @@ async function sendTask(ctx, task) {
     ])
   );
 }
-      ]
-    ])
-  );
-}
 
 async function createNextRepeatTask(task) {
   if (!task || task.repeat_created === true) return;
