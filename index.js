@@ -9,8 +9,9 @@ const pool = new Pool({
 });
 
 const PROVIDER_TOKEN = process.env.PROVIDER_TOKEN;
-const PRICE_RUB = 50000;
+const ADMIN_ID = Number(process.env.ADMIN_ID);
 
+const PRICE_RUB = 50000;
 const userState = {};
 const DEFAULT_TIMEZONE = 'Europe/Moscow';
 
@@ -467,6 +468,70 @@ async function updateStreak(userId, timezone) {
   );
 }
 
+// ================= АДМИН-ПАНЕЛЬ =================
+
+bot.command('admin', async (ctx) => {
+  if (ctx.from.id !== ADMIN_ID) {
+    return ctx.reply('⛔ У тебя нет доступа к админ-панели');
+  }
+
+  const users = await pool.query(`SELECT COUNT(*) FROM users_settings`);
+
+  const trial = await pool.query(`
+    SELECT COUNT(*) FROM subscriptions
+    WHERE trial_end > NOW()
+    AND (paid_until IS NULL OR paid_until < NOW())
+  `);
+
+  const paid = await pool.query(`
+    SELECT COUNT(*) FROM subscriptions
+    WHERE paid_until > NOW()
+  `);
+
+  const expired = await pool.query(`
+    SELECT COUNT(*) FROM subscriptions
+    WHERE (trial_end IS NULL OR trial_end < NOW())
+    AND (paid_until IS NULL OR paid_until < NOW())
+  `);
+
+  const tasks = await pool.query(`SELECT COUNT(*) FROM tasks`);
+
+  const activeTasks = await pool.query(`
+    SELECT COUNT(*) FROM tasks
+    WHERE done=false
+  `);
+
+  const doneTasks = await pool.query(`
+    SELECT COUNT(*) FROM tasks
+    WHERE done=true
+  `);
+
+  const todayUsers = await pool.query(`
+    SELECT COUNT(DISTINCT user_id) FROM tasks
+    WHERE created_at::date = NOW()::date
+  `);
+
+  const todayTasks = await pool.query(`
+    SELECT COUNT(*) FROM tasks
+    WHERE created_at::date = NOW()::date
+  `);
+
+  await ctx.reply(
+    `📊 Админ-панель\n\n` +
+    `👥 Пользователей всего: ${users.rows[0].count}\n` +
+    `🎁 На пробном периоде: ${trial.rows[0].count}\n` +
+    `💎 Оплатили: ${paid.rows[0].count}\n` +
+    `🚫 Без доступа: ${expired.rows[0].count}\n\n` +
+    `📋 Всего задач: ${tasks.rows[0].count}\n` +
+    `🟡 Активных задач: ${activeTasks.rows[0].count}\n` +
+    `✅ Выполненных задач: ${doneTasks.rows[0].count}\n\n` +
+    `🔥 Создавали задачи сегодня: ${todayUsers.rows[0].count}\n` +
+    `🆕 Задач создано сегодня: ${todayTasks.rows[0].count}`
+  );
+});
+
+// ================= СТАРТ И ОПЛАТА =================
+
 bot.start(async (ctx) => {
   await ensureUser(ctx.from.id);
   delete userState[ctx.from.id];
@@ -474,7 +539,10 @@ bot.start(async (ctx) => {
   const subText = await subscriptionText(ctx.from.id);
 
   await ctx.reply(
-    `👋 Привет! Я твой умный планировщик задач.\n\n🎁 Первые 7 дней бесплатно.\nПотом подписка: 500₽/мес.\n\n${subText}`,
+    `👋 Привет! Я твой умный планировщик задач.\n\n` +
+    `🎁 Первые 7 дней бесплатно.\n` +
+    `Потом подписка: 500₽/мес.\n\n` +
+    `${subText}`,
     menu()
   );
 });
@@ -485,7 +553,10 @@ async function sendSubscriptionInvoice(ctx) {
   }
 
   await ctx.reply(
-    '💎 Подписка\n\n🎁 Первые 7 дней бесплатно\n💳 Далее: 500₽/мес\n\nTelegram не делает автосписание — пользователь оплачивает каждый месяц сам.'
+    '💎 Подписка\n\n' +
+    '🎁 Первые 7 дней бесплатно\n' +
+    '💳 Далее: 500₽/мес\n\n' +
+    'Telegram не делает автосписание — пользователь оплачивает каждый месяц сам.'
   );
 
   await ctx.replyWithInvoice({
@@ -530,6 +601,8 @@ bot.on('successful_payment', async (ctx) => {
   await ctx.reply('✅ Оплата прошла! Доступ открыт на 30 дней 🎉', menu());
 });
 
+// ================= ПРОВЕРКА ДОСТУПА =================
+
 bot.use(async (ctx, next) => {
   const userId = ctx.from?.id;
   if (!userId) return next();
@@ -549,6 +622,8 @@ bot.use(async (ctx, next) => {
     subscriptionMenu()
   );
 });
+
+// ================= МЕНЮ =================
 
 bot.hears('❌ Отмена', async (ctx) => {
   delete userState[ctx.from.id];
@@ -741,6 +816,8 @@ bot.hears('📊 Статистика', async (ctx) => {
     menu()
   );
 });
+
+// ================= ТЕКСТОВАЯ ЛОГИКА =================
 
 bot.on('text', async (ctx) => {
   const userId = ctx.from.id;
@@ -994,6 +1071,8 @@ bot.on('text', async (ctx) => {
   }
 });
 
+// ================= INLINE-КНОПКИ =================
+
 bot.action(/edit_(\d+)/, async (ctx) => {
   const taskId = ctx.match[1];
 
@@ -1138,6 +1217,8 @@ bot.action(/remind_(\d+)/, async (ctx) => {
     `🕒 ${task.time || '—'}`
   );
 });
+
+// ================= НАПОМИНАНИЯ =================
 
 setInterval(async () => {
   try {
