@@ -10,8 +10,8 @@ const pool = new Pool({
 
 const PROVIDER_TOKEN = process.env.PROVIDER_TOKEN;
 const ADMIN_ID = Number(process.env.ADMIN_ID);
-
 const PRICE_RUB = 50000;
+
 const userState = {};
 const DEFAULT_TIMEZONE = 'Europe/Moscow';
 
@@ -470,64 +470,68 @@ async function updateStreak(userId, timezone) {
 
 // ================= АДМИН-ПАНЕЛЬ =================
 
+bot.command('myid', async (ctx) => {
+  await ctx.reply(`Твой Telegram ID: ${ctx.from.id}`);
+});
+
 bot.command('admin', async (ctx) => {
-  if (ctx.from.id !== ADMIN_ID) {
-    return ctx.reply('⛔ У тебя нет доступа к админ-панели');
+  try {
+    if (!ADMIN_ID || ctx.from.id !== ADMIN_ID) {
+      return ctx.reply(
+        `⛔ Нет доступа\n\n` +
+        `Твой ID: ${ctx.from.id}\n` +
+        `ADMIN_ID в Railway: ${ADMIN_ID || 'не указан'}`
+      );
+    }
+
+    const users = await pool.query(`SELECT COUNT(*) FROM users_settings`);
+
+    const trial = await pool.query(`
+      SELECT COUNT(*) FROM subscriptions
+      WHERE trial_end > NOW()
+      AND (paid_until IS NULL OR paid_until < NOW())
+    `);
+
+    const paid = await pool.query(`
+      SELECT COUNT(*) FROM subscriptions
+      WHERE paid_until > NOW()
+    `);
+
+    const expired = await pool.query(`
+      SELECT COUNT(*) FROM subscriptions
+      WHERE (trial_end IS NULL OR trial_end < NOW())
+      AND (paid_until IS NULL OR paid_until < NOW())
+    `);
+
+    const tasks = await pool.query(`SELECT COUNT(*) FROM tasks`);
+    const activeTasks = await pool.query(`SELECT COUNT(*) FROM tasks WHERE done=false`);
+    const doneTasks = await pool.query(`SELECT COUNT(*) FROM tasks WHERE done=true`);
+
+    const todayUsers = await pool.query(`
+      SELECT COUNT(DISTINCT user_id) FROM tasks
+      WHERE created_at::date = NOW()::date
+    `);
+
+    const todayTasks = await pool.query(`
+      SELECT COUNT(*) FROM tasks
+      WHERE created_at::date = NOW()::date
+    `);
+
+    await ctx.reply(
+      `📊 Админ-панель\n\n` +
+      `👥 Пользователей всего: ${users.rows[0].count}\n` +
+      `🎁 На пробном периоде: ${trial.rows[0].count}\n` +
+      `💎 Оплатили: ${paid.rows[0].count}\n` +
+      `🚫 Без доступа: ${expired.rows[0].count}\n\n` +
+      `📋 Всего задач: ${tasks.rows[0].count}\n` +
+      `🟡 Активных задач: ${activeTasks.rows[0].count}\n` +
+      `✅ Выполненных задач: ${doneTasks.rows[0].count}\n\n` +
+      `🔥 Создавали задачи сегодня: ${todayUsers.rows[0].count}\n` +
+      `🆕 Задач создано сегодня: ${todayTasks.rows[0].count}`
+    );
+  } catch (e) {
+    await ctx.reply(`❌ Ошибка админки:\n${e.message}`);
   }
-
-  const users = await pool.query(`SELECT COUNT(*) FROM users_settings`);
-
-  const trial = await pool.query(`
-    SELECT COUNT(*) FROM subscriptions
-    WHERE trial_end > NOW()
-    AND (paid_until IS NULL OR paid_until < NOW())
-  `);
-
-  const paid = await pool.query(`
-    SELECT COUNT(*) FROM subscriptions
-    WHERE paid_until > NOW()
-  `);
-
-  const expired = await pool.query(`
-    SELECT COUNT(*) FROM subscriptions
-    WHERE (trial_end IS NULL OR trial_end < NOW())
-    AND (paid_until IS NULL OR paid_until < NOW())
-  `);
-
-  const tasks = await pool.query(`SELECT COUNT(*) FROM tasks`);
-
-  const activeTasks = await pool.query(`
-    SELECT COUNT(*) FROM tasks
-    WHERE done=false
-  `);
-
-  const doneTasks = await pool.query(`
-    SELECT COUNT(*) FROM tasks
-    WHERE done=true
-  `);
-
-  const todayUsers = await pool.query(`
-    SELECT COUNT(DISTINCT user_id) FROM tasks
-    WHERE created_at::date = NOW()::date
-  `);
-
-  const todayTasks = await pool.query(`
-    SELECT COUNT(*) FROM tasks
-    WHERE created_at::date = NOW()::date
-  `);
-
-  await ctx.reply(
-    `📊 Админ-панель\n\n` +
-    `👥 Пользователей всего: ${users.rows[0].count}\n` +
-    `🎁 На пробном периоде: ${trial.rows[0].count}\n` +
-    `💎 Оплатили: ${paid.rows[0].count}\n` +
-    `🚫 Без доступа: ${expired.rows[0].count}\n\n` +
-    `📋 Всего задач: ${tasks.rows[0].count}\n` +
-    `🟡 Активных задач: ${activeTasks.rows[0].count}\n` +
-    `✅ Выполненных задач: ${doneTasks.rows[0].count}\n\n` +
-    `🔥 Создавали задачи сегодня: ${todayUsers.rows[0].count}\n` +
-    `🆕 Задач создано сегодня: ${todayTasks.rows[0].count}`
-  );
 });
 
 // ================= СТАРТ И ОПЛАТА =================
