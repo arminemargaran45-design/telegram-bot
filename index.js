@@ -36,8 +36,6 @@ async function initDB() {
       digest_sent_date TEXT
     )
   `);
-
-  console.log('DB ready');
 }
 
 function menu() {
@@ -81,6 +79,12 @@ function tomorrowDate() {
   return date.toISOString().slice(0, 10);
 }
 
+function addDays(dateText, days) {
+  const date = dateText ? new Date(dateText) : new Date();
+  date.setDate(date.getDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
 function formatDate(value) {
   if (!value) return 'Без даты';
   const [year, month, day] = value.split('-');
@@ -95,26 +99,41 @@ function normalizeTime(text) {
   return text.replace('.', ':').padStart(5, '0');
 }
 
+function addMinutes(time, minutes) {
+  const [h, m] = time.split(':').map(Number);
+  const date = new Date();
+  date.setHours(h);
+  date.setMinutes(m + minutes);
+  return date.toTimeString().slice(0, 5);
+}
+
 function priorityLabel(priority) {
   if (priority === 'high') return '🔥 Высокий';
   if (priority === 'low') return '🟢 Низкий';
   return '⚪ Средний';
 }
 
-function addMinutes(time, minutesToAdd) {
-  const [h, m] = time.split(':').map(Number);
-  const date = new Date();
-  date.setHours(h);
-  date.setMinutes(m + minutesToAdd);
-  return date.toTimeString().slice(0, 5);
+function taskCard(task) {
+  return (
+    `━━━━━━━━━━━━━━\n` +
+    `📌 ${task.text}\n\n` +
+    `📅 ${formatDate(task.task_date)}\n` +
+    `⏰ ${task.time || 'Без времени'}\n` +
+    `⭐ ${priorityLabel(task.priority)}\n` +
+    `━━━━━━━━━━━━━━`
+  );
 }
 
 async function sendTask(ctx, task) {
   await ctx.reply(
-    `📌 ${task.text}\n📅 ${formatDate(task.task_date)}\n⏰ ${task.time || 'Без времени'}\n⭐ ${priorityLabel(task.priority)}`,
+    taskCard(task),
     Markup.inlineKeyboard([
       [
         Markup.button.callback('✅ Готово', `done_${task.id}`),
+        Markup.button.callback('⏰ +1ч', `plus1_${task.id}`)
+      ],
+      [
+        Markup.button.callback('🔁 Завтра', `tomorrow_${task.id}`),
         Markup.button.callback('🗑 Удалить', `delete_${task.id}`)
       ]
     ])
@@ -128,7 +147,7 @@ bot.start(async (ctx) => {
   );
 
   ctx.reply(
-    '👋 Привет! Я твой умный планировщик задач.\n\nЧто я умею:\n\n➕ создавать задачи\n📅 показывать задачи на сегодня и завтра\n🔔 напоминать за 10 минут\n☀️ присылать утренний план дня',
+    '👋 Привет! Я твой умный планировщик задач.\n\nНажми «➕ Новая задача», и я спрошу всё по шагам.',
     menu()
   );
 });
@@ -354,6 +373,44 @@ bot.action(/delete_(\d+)/, async (ctx) => {
 
   await ctx.answerCbQuery('Удалено 🗑');
   await ctx.editMessageText('🗑 Задача удалена');
+});
+
+bot.action(/tomorrow_(\d+)/, async (ctx) => {
+  await pool.query(
+    `UPDATE tasks 
+     SET task_date=$1, notified=false, pre_notified=false 
+     WHERE id=$2 AND user_id=$3`,
+    [tomorrowDate(), ctx.match[1], ctx.from.id]
+  );
+
+  await ctx.answerCbQuery('Перенесено на завтра 🔁');
+  await ctx.editMessageText('🔁 Задача перенесена на завтра');
+});
+
+bot.action(/plus1_(\d+)/, async (ctx) => {
+  const res = await pool.query(
+    'SELECT * FROM tasks WHERE id=$1 AND user_id=$2',
+    [ctx.match[1], ctx.from.id]
+  );
+
+  const task = res.rows[0];
+
+  if (!task || !task.time) {
+    await ctx.answerCbQuery('У задачи нет времени');
+    return;
+  }
+
+  const newTime = addMinutes(task.time, 60);
+
+  await pool.query(
+    `UPDATE tasks 
+     SET time=$1, notified=false, pre_notified=false 
+     WHERE id=$2 AND user_id=$3`,
+    [newTime, ctx.match[1], ctx.from.id]
+  );
+
+  await ctx.answerCbQuery(`Перенесено на ${newTime}`);
+  await ctx.editMessageText(`⏰ Задача перенесена на ${newTime}`);
 });
 
 setInterval(async () => {
