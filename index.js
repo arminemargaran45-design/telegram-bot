@@ -10,6 +10,8 @@ const pool = new Pool({
 
 const userState = {};
 
+// ================= БАЗА =================
+
 async function initDB() {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS tasks (
@@ -27,6 +29,10 @@ async function initDB() {
   `);
 
   await pool.query(`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS task_date TEXT`);
+  await pool.query(`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS time TEXT`);
+  await pool.query(`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS priority TEXT DEFAULT 'medium'`);
+  await pool.query(`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS done BOOLEAN DEFAULT false`);
+  await pool.query(`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS notified BOOLEAN DEFAULT false`);
   await pool.query(`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS pre_notified BOOLEAN DEFAULT false`);
 
   await pool.query(`
@@ -37,6 +43,8 @@ async function initDB() {
     )
   `);
 }
+
+// ================= КНОПКИ =================
 
 function menu() {
   return Markup.keyboard([
@@ -69,6 +77,8 @@ function settingsMenu() {
   ]).resize();
 }
 
+// ================= ДАТА И ВРЕМЯ =================
+
 function todayDate() {
   return new Date().toISOString().slice(0, 10);
 }
@@ -90,7 +100,8 @@ function isValidTime(text) {
 }
 
 function normalizeTime(text) {
-  return text.replace('.', ':').padStart(5, '0');
+  const parts = text.replace('.', ':').split(':');
+  return `${parts[0].padStart(2, '0')}:${parts[1]}`;
 }
 
 function addMinutes(time, minutes) {
@@ -100,6 +111,8 @@ function addMinutes(time, minutes) {
   date.setMinutes(m + minutes);
   return date.toTimeString().slice(0, 5);
 }
+
+// ================= ОФОРМЛЕНИЕ =================
 
 function priorityLabel(priority) {
   if (priority === 'high') return '🔥 Высокий';
@@ -134,6 +147,8 @@ async function sendTask(ctx, task) {
   );
 }
 
+// ================= СТАРТ =================
+
 bot.start(async (ctx) => {
   await pool.query(
     'INSERT INTO users_settings (user_id) VALUES ($1) ON CONFLICT (user_id) DO NOTHING',
@@ -142,33 +157,34 @@ bot.start(async (ctx) => {
 
   delete userState[ctx.from.id];
 
-  ctx.reply(
+  await ctx.reply(
     '👋 Привет! Я твой умный планировщик задач.\n\nНажми «➕ Новая задача», и я спрошу всё по шагам.',
     menu()
   );
 });
 
-bot.hears('❌ Отмена', (ctx) => {
+// ================= МЕНЮ =================
+
+bot.hears('❌ Отмена', async (ctx) => {
   delete userState[ctx.from.id];
-  ctx.reply('Ок, отменено.', menu());
+  await ctx.reply('Ок, отменено.', menu());
 });
 
-bot.hears('⬅️ Назад', (ctx) => {
+bot.hears('⬅️ Назад', async (ctx) => {
   delete userState[ctx.from.id];
-  ctx.reply('Главное меню', menu());
+  await ctx.reply('Главное меню', menu());
 });
 
-bot.hears('➕ Новая задача', (ctx) => {
+bot.hears('➕ Новая задача', async (ctx) => {
   userState[ctx.from.id] = { step: 'text' };
-  ctx.reply(
+
+  await ctx.reply(
     '✍️ Что нужно сделать?\n\nНапример: Купить продукты',
     Markup.keyboard([['❌ Отмена']]).resize()
   );
 });
 
 bot.hears('⚙️ Настройки', async (ctx) => {
-  if (userState[ctx.from.id]) return;
-
   const res = await pool.query(
     'SELECT * FROM users_settings WHERE user_id=$1',
     [ctx.from.id]
@@ -176,16 +192,22 @@ bot.hears('⚙️ Настройки', async (ctx) => {
 
   const digestTime = res.rows[0]?.digest_time || '09:00';
 
-  ctx.reply(
+  await ctx.reply(
     `⚙️ Настройки\n\n☀️ Утренний план: ${digestTime}`,
     settingsMenu()
   );
 });
 
-bot.hears('⏰ Время утреннего плана', (ctx) => {
+bot.hears('⏰ Время утреннего плана', async (ctx) => {
   userState[ctx.from.id] = { step: 'digest_time' };
-  ctx.reply('Напиши время утреннего плана.\n\nНапример: 09:00');
+
+  await ctx.reply(
+    'Напиши время утреннего плана.\n\nНапример: 09:00',
+    Markup.keyboard([['❌ Отмена']]).resize()
+  );
 });
+
+// ================= СПИСКИ ЗАДАЧ =================
 
 bot.hears('📅 Сегодня', async (ctx) => {
   const state = userState[ctx.from.id];
@@ -193,13 +215,19 @@ bot.hears('📅 Сегодня', async (ctx) => {
   if (state?.step === 'date') {
     state.taskDate = todayDate();
     state.step = 'time';
-    return ctx.reply('⏰ Во сколько напомнить?\n\nНапример: 08:40\nИли напиши: нет');
+
+    return ctx.reply(
+      '⏰ Во сколько напомнить?\n\nНапример: 08:40\nИли напиши: нет',
+      Markup.keyboard([['нет'], ['❌ Отмена']]).resize()
+    );
   }
 
   if (state) return;
 
   const res = await pool.query(
-    'SELECT * FROM tasks WHERE user_id=$1 AND done=false AND task_date=$2 ORDER BY time NULLS LAST, id DESC',
+    `SELECT * FROM tasks 
+     WHERE user_id=$1 AND done=false AND task_date=$2 
+     ORDER BY time NULLS LAST, id DESC`,
     [ctx.from.id, todayDate()]
   );
 
@@ -218,13 +246,19 @@ bot.hears('🗓 Завтра', async (ctx) => {
   if (state?.step === 'date') {
     state.taskDate = tomorrowDate();
     state.step = 'time';
-    return ctx.reply('⏰ Во сколько напомнить?\n\nНапример: 08:40\nИли напиши: нет');
+
+    return ctx.reply(
+      '⏰ Во сколько напомнить?\n\nНапример: 08:40\nИли напиши: нет',
+      Markup.keyboard([['нет'], ['❌ Отмена']]).resize()
+    );
   }
 
   if (state) return;
 
   const res = await pool.query(
-    'SELECT * FROM tasks WHERE user_id=$1 AND done=false AND task_date=$2 ORDER BY time NULLS LAST, id DESC',
+    `SELECT * FROM tasks 
+     WHERE user_id=$1 AND done=false AND task_date=$2 
+     ORDER BY time NULLS LAST, id DESC`,
     [ctx.from.id, tomorrowDate()]
   );
 
@@ -245,14 +279,19 @@ bot.hears('🗂 Без даты', async (ctx) => {
   state.taskDate = null;
   state.step = 'time';
 
-  ctx.reply('⏰ Во сколько напомнить?\n\nНапример: 08:40\nИли напиши: нет');
+  await ctx.reply(
+    '⏰ Во сколько напомнить?\n\nНапример: 08:40\nИли напиши: нет',
+    Markup.keyboard([['нет'], ['❌ Отмена']]).resize()
+  );
 });
 
 bot.hears('📋 Все задачи', async (ctx) => {
   if (userState[ctx.from.id]) return;
 
   const res = await pool.query(
-    'SELECT * FROM tasks WHERE user_id=$1 AND done=false ORDER BY task_date NULLS LAST, time NULLS LAST, id DESC',
+    `SELECT * FROM tasks 
+     WHERE user_id=$1 AND done=false 
+     ORDER BY task_date NULLS LAST, time NULLS LAST, id DESC`,
     [ctx.from.id]
   );
 
@@ -277,8 +316,10 @@ bot.hears('✅ Выполненные', async (ctx) => {
     return ctx.reply('Пока нет выполненных задач', menu());
   }
 
-  ctx.reply(
-    res.rows.map((t, i) => `${i + 1}. ✅ ${t.text} — ${formatDate(t.task_date)} ${t.time || ''}`).join('\n'),
+  await ctx.reply(
+    res.rows
+      .map((t, i) => `${i + 1}. ✅ ${t.text} — ${formatDate(t.task_date)} ${t.time || ''}`)
+      .join('\n'),
     menu()
   );
 });
@@ -301,11 +342,16 @@ bot.hears('📊 Статистика', async (ctx) => {
     [ctx.from.id, todayDate()]
   );
 
-  ctx.reply(
-    `📊 Статистика\n\n📋 Активные: ${active.rows[0].count}\n📅 Сегодня: ${today.rows[0].count}\n✅ Выполненные: ${done.rows[0].count}`,
+  await ctx.reply(
+    `📊 Статистика\n\n` +
+    `📋 Активные: ${active.rows[0].count}\n` +
+    `📅 Сегодня: ${today.rows[0].count}\n` +
+    `✅ Выполненные: ${done.rows[0].count}`,
     menu()
   );
 });
+
+// ================= СОЗДАНИЕ ЗАДАЧИ =================
 
 bot.on('text', async (ctx) => {
   const userId = ctx.from.id;
@@ -344,6 +390,7 @@ bot.on('text', async (ctx) => {
     }
 
     state.step = 'date';
+
     return ctx.reply('📅 На когда задача?', dateMenu());
   }
 
@@ -351,11 +398,12 @@ bot.on('text', async (ctx) => {
     if (text.toLowerCase() === 'нет') {
       state.time = null;
       state.step = 'priority';
+
       return ctx.reply('⭐ Выбери приоритет:', priorityMenu());
     }
 
     if (!isValidTime(text)) {
-      return ctx.reply('❗ Напиши время в формате 08:40');
+      return ctx.reply('❗ Напиши время в формате 08:40 или напиши: нет');
     }
 
     state.time = normalizeTime(text);
@@ -367,27 +415,34 @@ bot.on('text', async (ctx) => {
   if (state.step === 'priority') {
     let priority = null;
 
-    if (text === '🟢 Низкий') priority = 'low';
-    if (text === '⚪ Средний') priority = 'medium';
-    if (text === '🔥 Высокий') priority = 'high';
+    if (text.includes('Низкий')) priority = 'low';
+    else if (text.includes('Средний')) priority = 'medium';
+    else if (text.includes('Высокий')) priority = 'high';
 
     if (!priority) {
       return ctx.reply('Выбери приоритет кнопкой:', priorityMenu());
     }
 
     await pool.query(
-      'INSERT INTO tasks (user_id, text, task_date, time, priority) VALUES ($1, $2, $3, $4, $5)',
+      `INSERT INTO tasks (user_id, text, task_date, time, priority)
+       VALUES ($1, $2, $3, $4, $5)`,
       [userId, state.text, state.taskDate, state.time, priority]
     );
 
+    const message =
+      `✅ Задача добавлена!\n\n` +
+      `📌 ${state.text}\n` +
+      `📅 ${formatDate(state.taskDate)}\n` +
+      `⏰ ${state.time || 'Без времени'}\n` +
+      `⭐ ${priorityLabel(priority)}`;
+
     delete userState[userId];
 
-    return ctx.reply(
-      `✅ Задача добавлена!\n\n📌 ${state.text}\n📅 ${formatDate(state.taskDate)}\n⏰ ${state.time || 'Без времени'}\n⭐ ${priorityLabel(priority)}`,
-      menu()
-    );
+    return ctx.reply(message, menu());
   }
 });
+
+// ================= КНОПКИ ПОД ЗАДАЧАМИ =================
 
 bot.action(/done_(\d+)/, async (ctx) => {
   await pool.query(
@@ -446,6 +501,8 @@ bot.action(/plus1_(\d+)/, async (ctx) => {
   await ctx.answerCbQuery(`Перенесено на ${newTime}`);
   await ctx.editMessageText(`⏰ Задача перенесена на ${newTime}`);
 });
+
+// ================= НАПОМИНАНИЯ =================
 
 setInterval(async () => {
   try {
@@ -525,14 +582,19 @@ setInterval(async () => {
         [currentDate, user.user_id]
       );
     }
-
   } catch (e) {
     console.log('TIMER ERROR', e.message);
   }
 }, 60000);
 
-initDB().then(async () => {
-  await bot.telegram.deleteWebhook();
-  bot.launch();
-  console.log('Bot started');
-});
+// ================= ЗАПУСК =================
+
+initDB()
+  .then(async () => {
+    await bot.telegram.deleteWebhook();
+    bot.launch();
+    console.log('Bot started');
+  })
+  .catch((e) => {
+    console.log('START ERROR', e.message);
+  });
