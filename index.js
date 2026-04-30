@@ -669,16 +669,20 @@ async function sendTask(ctx, task) {
     taskCard(task, lang),
     Markup.inlineKeyboard([
       [
-        Markup.button.callback('✅', `done_${task.id}`),
-        Markup.button.callback('✏️', `edit_${task.id}`)
+        Markup.button.callback('✅ Готово', `done_${task.id}`),
+        Markup.button.callback('✏️ Редактировать', `edit_${task.id}`)
       ],
       [
-        Markup.button.callback('⏰ +1h', `plus1_${task.id}`),
-        Markup.button.callback('🔁', `tomorrow_${task.id}`)
+        Markup.button.callback('⏰ +1 час', `plus1_${task.id}`),
+        Markup.button.callback('🔁 На завтра', `tomorrow_${task.id}`)
       ],
       [
-        Markup.button.callback('🔔', `remind_${task.id}`),
-        Markup.button.callback('🗑', `delete_${task.id}`)
+        Markup.button.callback('🔔 Напомнить', `remind_${task.id}`),
+        Markup.button.callback('🗑 Удалить', `delete_${task.id}`)
+      ]
+    ])
+  );
+}
       ]
     ])
   );
