@@ -2,7 +2,7 @@ const { Telegraf, Markup } = require('telegraf');
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
 
-// память (временно)
+// хранилище задач (пока в памяти)
 let tasks = [];
 
 // --- парсинг времени ---
@@ -34,7 +34,7 @@ bot.hears('➕ Новая задача', (ctx) => {
   ctx.reply('Напиши задачу с временем\nПример: Обед 15:00');
 });
 
-// --- список ---
+// --- список задач ---
 bot.hears('📋 Все задачи', (ctx) => {
   if (tasks.length === 0) {
     return ctx.reply('Нет задач');
@@ -53,12 +53,11 @@ bot.hears('📋 Все задачи', (ctx) => {
   });
 });
 
-// --- обработка текста ---
+// --- добавление задачи ---
 bot.on('text', (ctx) => {
   const text = ctx.message.text;
 
   const time = parseTime(text);
-
   if (!time) return;
 
   const taskText = text.replace(/\d{1,2}:\d{2}/, '').trim();
@@ -77,7 +76,6 @@ bot.on('text', (ctx) => {
 // --- кнопки ---
 bot.action(/done_(.+)/, (ctx) => {
   const id = ctx.match[1];
-
   tasks.splice(id, 1);
 
   ctx.answerCbQuery('Готово');
@@ -86,7 +84,6 @@ bot.action(/done_(.+)/, (ctx) => {
 
 bot.action(/del_(.+)/, (ctx) => {
   const id = ctx.match[1];
-
   tasks.splice(id, 1);
 
   ctx.answerCbQuery('Удалено');
